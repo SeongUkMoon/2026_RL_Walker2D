@@ -1,0 +1,15 @@
+{
+  "_comment": "옆에서 본 강아지. 앞다리/뒷다리 각각 2마디(위/아래). 머리와 꼬리는 모터 없이 흔들리기만 함(motor: false).",
+  "name": "dog",
+  "segments": [
+    {"name": "torso",   "parent": null,      "start": [-0.40, 0.60], "end": [0.40, 0.60],  "radius": 0.10, "color": "brown"},
+    {"name": "head",    "parent": "torso",   "start": [0.40, 0.60],  "end": [0.60, 0.80],  "radius": 0.07, "joint_range": [-20, 20], "motor": false, "color": "brown"},
+    {"name": "tail",    "parent": "torso",   "start": [-0.40, 0.60], "end": [-0.65, 0.85], "radius": 0.02, "joint_range": [-40, 40], "motor": false, "color": "brown"},
+
+    {"name": "front_upper", "parent": "torso",       "start": [0.35, 0.55],  "end": [0.30, 0.30],  "radius": 0.040, "joint_range": [-70, 70], "color": "brown"},
+    {"name": "front_lower", "parent": "front_upper", "start": [0.30, 0.30],  "end": [0.35, 0.05],  "radius": 0.035, "joint_range": [-90, 30], "friction": 1.9, "color": "brown"},
+
+    {"name": "back_upper",  "parent": "torso",       "start": [-0.35, 0.55], "end": [-0.45, 0.30], "radius": 0.045, "joint_range": [-70, 70], "color": "purple"},
+    {"name": "back_lower",  "parent": "back_upper",  "start": [-0.45, 0.30], "end": [-0.35, 0.05], "radius": 0.035, "joint_range": [-30, 90], "friction": 1.9, "color": "purple"}
+  ]
+}

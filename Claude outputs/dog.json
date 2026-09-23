@@ -1,0 +1,12 @@
+{
+  "name": "dog",
+  "segments": [
+    {"name": "torso", "parent": null, "start": [-0.40, 0.60], "end": [0.40, 0.60], "radius": 0.10},
+    {"name": "head",  "parent": "torso", "start": [0.40, 0.60], "end": [0.60, 0.80], "radius": 0.07, "joint_range": [-20, 20], "motor": false},
+    {"name": "tail",  "parent": "torso", "start": [-0.40, 0.60], "end": [-0.65, 0.85], "radius": 0.02, "joint_range": [-40, 40], "motor": false},
+    {"name": "f_upper", "parent": "torso",   "start": [0.35, 0.55], "end": [0.30, 0.30], "radius": 0.04, "joint_range": [-70, 70]},
+    {"name": "f_lower", "parent": "f_upper", "start": [0.30, 0.30], "end": [0.35, 0.05], "radius": 0.035, "joint_range": [-90, 30], "friction": 1.9},
+    {"name": "b_upper", "parent": "torso",   "start": [-0.35, 0.55], "end": [-0.45, 0.30], "radius": 0.045, "joint_range": [-70, 70], "rgba": "0.7 0.3 0.6 1"},
+    {"name": "b_lower", "parent": "b_upper", "start": [-0.45, 0.30], "end": [-0.35, 0.05], "radius": 0.035, "joint_range": [-30, 90], "friction": 1.9, "rgba": "0.7 0.3 0.6 1"}
+  ]
+}

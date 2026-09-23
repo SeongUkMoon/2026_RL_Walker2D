@@ -1,0 +1,14 @@
+{
+  "name": "ostrich",
+  "segments": [
+    {"name": "torso", "parent": null, "start": [-0.30, 1.10], "end": [0.30, 1.10], "radius": 0.12},
+    {"name": "neck",  "parent": "torso", "start": [0.30, 1.10], "end": [0.45, 1.60], "radius": 0.04, "joint_range": [-30, 30], "motor": false},
+    {"name": "head",  "parent": "neck",  "start": [0.45, 1.60], "end": [0.65, 1.60], "radius": 0.06, "joint_range": [-20, 20], "motor": false},
+    {"name": "thigh_r", "parent": "torso",   "start": [0.0, 1.00], "end": [-0.15, 0.65], "radius": 0.05, "joint_range": [-60, 60]},
+    {"name": "shank_r", "parent": "thigh_r", "start": [-0.15, 0.65], "end": [0.05, 0.25], "radius": 0.04, "joint_range": [-20, 120]},
+    {"name": "foot_r",  "parent": "shank_r", "start": [0.05, 0.25], "end": [0.30, 0.06], "radius": 0.04, "joint_range": [-45, 45], "friction": 1.9},
+    {"name": "thigh_l", "parent": "torso",   "start": [0.0, 1.00], "end": [-0.15, 0.65], "radius": 0.05, "joint_range": [-60, 60], "rgba": "0.7 0.3 0.6 1"},
+    {"name": "shank_l", "parent": "thigh_l", "start": [-0.15, 0.65], "end": [0.05, 0.25], "radius": 0.04, "joint_range": [-20, 120], "rgba": "0.7 0.3 0.6 1"},
+    {"name": "foot_l",  "parent": "shank_l", "start": [0.05, 0.25], "end": [0.30, 0.06], "radius": 0.04, "joint_range": [-45, 45], "friction": 1.9, "rgba": "0.7 0.3 0.6 1"}
+  ]
+}

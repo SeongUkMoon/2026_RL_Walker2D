@@ -1,0 +1,17 @@
+{
+  "_comment": "타조. 큰 몸통 + 목/머리(모터 없음) + 3마디 다리 두 개(무릎이 뒤로 꺾임). 발은 friction 1.9.",
+  "name": "ostrich",
+  "segments": [
+    {"name": "torso",   "parent": null,      "start": [-0.30, 1.10], "end": [0.30, 1.10],  "radius": 0.12, "color": "brown"},
+    {"name": "neck",    "parent": "torso",   "start": [0.30, 1.10],  "end": [0.45, 1.60],  "radius": 0.04, "joint_range": [-30, 30], "motor": false, "color": "yellow"},
+    {"name": "head",    "parent": "neck",    "start": [0.45, 1.60],  "end": [0.65, 1.60],  "radius": 0.06, "joint_range": [-20, 20], "motor": false, "color": "yellow"},
+
+    {"name": "thigh_r", "parent": "torso",   "start": [0.00, 1.00],  "end": [-0.15, 0.65], "radius": 0.05, "joint_range": [-60, 60], "color": "brown"},
+    {"name": "shin_r",  "parent": "thigh_r", "start": [-0.15, 0.65], "end": [0.05, 0.25],  "radius": 0.04, "joint_range": [-20, 120], "color": "brown"},
+    {"name": "foot_r",  "parent": "shin_r",  "start": [0.05, 0.25],  "end": [0.30, 0.06],  "radius": 0.04, "joint_range": [-45, 45], "friction": 1.9, "color": "brown"},
+
+    {"name": "thigh_l", "parent": "torso",   "start": [0.00, 1.00],  "end": [-0.15, 0.65], "radius": 0.05, "joint_range": [-60, 60], "color": "purple"},
+    {"name": "shin_l",  "parent": "thigh_l", "start": [-0.15, 0.65], "end": [0.05, 0.25],  "radius": 0.04, "joint_range": [-20, 120], "color": "purple"},
+    {"name": "foot_l",  "parent": "shin_l",  "start": [0.05, 0.25],  "end": [0.30, 0.06],  "radius": 0.04, "joint_range": [-45, 45], "friction": 1.9, "color": "purple"}
+  ]
+}

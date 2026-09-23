@@ -1,0 +1,15 @@
+{
+  "_comment": "Gymnasium 기본 Walker2d 와 비슷한 이족 보행 캐릭터를 JSON spec 으로 다시 그린 예제. 두 다리는 같은 위치에 겹쳐 붙어 있습니다(옆에서 본 그림이므로).",
+  "name": "biped",
+  "segments": [
+    {"name": "torso",   "parent": null,      "start": [0.0, 1.05],  "end": [0.0, 1.45],  "radius": 0.05, "color": "brown"},
+
+    {"name": "thigh_r", "parent": "torso",   "start": [0.0, 1.05],  "end": [0.0, 0.60],  "radius": 0.05, "joint_range": [-150, 0], "color": "brown"},
+    {"name": "shin_r",  "parent": "thigh_r", "start": [0.0, 0.60],  "end": [0.0, 0.10],  "radius": 0.04, "joint_range": [-150, 0], "color": "brown"},
+    {"name": "foot_r",  "parent": "shin_r",  "start": [-0.05, 0.06], "end": [0.20, 0.06], "radius": 0.06, "joint_range": [-45, 45], "friction": 1.9, "color": "brown"},
+
+    {"name": "thigh_l", "parent": "torso",   "start": [0.0, 1.05],  "end": [0.0, 0.60],  "radius": 0.05, "joint_range": [-150, 0], "color": "purple"},
+    {"name": "shin_l",  "parent": "thigh_l", "start": [0.0, 0.60],  "end": [0.0, 0.10],  "radius": 0.04, "joint_range": [-150, 0], "color": "purple"},
+    {"name": "foot_l",  "parent": "shin_l",  "start": [-0.05, 0.06], "end": [0.20, 0.06], "radius": 0.06, "joint_range": [-45, 45], "friction": 1.9, "color": "purple"}
+  ]
+}

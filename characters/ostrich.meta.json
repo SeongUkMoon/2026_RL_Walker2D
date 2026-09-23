@@ -1,0 +1,53 @@
+{
+  "name": "ostrich",
+  "terrain": "flat",
+  "torso_z0": 1.085,
+  "height": 1.645,
+  "total_mass": 56.19,
+  "gear": 237.1,
+  "frame_skip": 4,
+  "segments": [
+    "torso",
+    "neck",
+    "head",
+    "thigh_r",
+    "shin_r",
+    "foot_r",
+    "thigh_l",
+    "shin_l",
+    "foot_l"
+  ],
+  "joint_names": [
+    "neck_joint",
+    "head_joint",
+    "thigh_r_joint",
+    "shin_r_joint",
+    "foot_r_joint",
+    "thigh_l_joint",
+    "shin_l_joint",
+    "foot_l_joint"
+  ],
+  "motor_joints": [
+    "thigh_r_joint",
+    "shin_r_joint",
+    "foot_r_joint",
+    "thigh_l_joint",
+    "shin_l_joint",
+    "foot_l_joint"
+  ],
+  "n_motors": 6,
+  "healthy_z_range": [
+    0.5968,
+    5.34
+  ],
+  "healthy_angle_range": [
+    -1.0471975511965976,
+    1.0471975511965976
+  ],
+  "camera": {
+    "distance": 3.29,
+    "lookat_z": 0.823
+  },
+  "warnings": [],
+  "source": "ostrich.json"
+}

@@ -1,0 +1,21 @@
+# 가상환경 / 파이썬 캐시
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# 참가자 산출물 (학습 결과, 영상). 예시 영상은 videos/demo/ 에만 둡니다.
+runs/
+videos/*
+!videos/demo/
+!videos/demo/**
+characters/_generated/
+
+# 참가자가 만든 캐릭터의 생성물은 남겨도 되지만 기본적으로는 json 만 관리
+characters/my_character.xml
+characters/my_character.meta.json
+
+# 기타
+.DS_Store
+Thumbs.db
+logs_pretrained_*.txt

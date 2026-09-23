@@ -1,0 +1,15 @@
+{
+  "elapsed_sec": 600.0,
+  "timesteps_total": 1265104,
+  "timesteps_this_run": 1265104,
+  "mean_reward_last": 3867.0,
+  "mean_ep_len_last": 800.3,
+  "mean_distance_last": 24.54,
+  "eval_distance": 31.0,
+  "eval_reward": 4874.9,
+  "eval_episode_steps": 1000,
+  "eval_episode_seconds": 8.0,
+  "eval_falls": 0,
+  "eval_episodes": 2,
+  "eval_seconds": 10.0
+}

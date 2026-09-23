@@ -1,0 +1,47 @@
+{
+  "name": "dog",
+  "terrain": "flat",
+  "torso_z0": 0.59,
+  "height": 0.86,
+  "total_mass": 41.61,
+  "gear": 175.6,
+  "frame_skip": 4,
+  "segments": [
+    "torso",
+    "head",
+    "tail",
+    "front_upper",
+    "front_lower",
+    "back_upper",
+    "back_lower"
+  ],
+  "joint_names": [
+    "head_joint",
+    "tail_joint",
+    "front_upper_joint",
+    "front_lower_joint",
+    "back_upper_joint",
+    "back_lower_joint"
+  ],
+  "motor_joints": [
+    "front_upper_joint",
+    "front_lower_joint",
+    "back_upper_joint",
+    "back_lower_joint"
+  ],
+  "n_motors": 4,
+  "healthy_z_range": [
+    0.3245,
+    3.36
+  ],
+  "healthy_angle_range": [
+    -1.0471975511965976,
+    1.0471975511965976
+  ],
+  "camera": {
+    "distance": 1.8,
+    "lookat_z": 0.43
+  },
+  "warnings": [],
+  "source": "dog.json"
+}

@@ -1,0 +1,49 @@
+{
+  "name": "walker",
+  "terrain": "flat",
+  "torso_z0": 1.25,
+  "height": 1.5,
+  "total_mass": 23.68,
+  "gear": 100.0,
+  "frame_skip": 4,
+  "segments": [
+    "torso",
+    "thigh",
+    "leg",
+    "foot",
+    "thigh_left",
+    "leg_left",
+    "foot_left"
+  ],
+  "joint_names": [
+    "thigh_joint",
+    "leg_joint",
+    "foot_joint",
+    "thigh_left_joint",
+    "leg_left_joint",
+    "foot_left_joint"
+  ],
+  "motor_joints": [
+    "thigh_joint",
+    "leg_joint",
+    "foot_joint",
+    "thigh_left_joint",
+    "leg_left_joint",
+    "foot_left_joint"
+  ],
+  "n_motors": 6,
+  "healthy_z_range": [
+    0.8,
+    2.0
+  ],
+  "healthy_angle_range": [
+    -1.0,
+    1.0
+  ],
+  "camera": {
+    "distance": 3.0,
+    "lookat_z": 0.75
+  },
+  "warnings": [],
+  "source": "walker.xml (Gymnasium 기본 모델)"
+}
