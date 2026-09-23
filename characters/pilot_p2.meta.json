@@ -1,0 +1,47 @@
+{
+  "name": "pilot_p2",
+  "terrain": "flat",
+  "torso_z0": 0.525,
+  "height": 0.8,
+  "total_mass": 19.59,
+  "gear": 82.7,
+  "frame_skip": 4,
+  "segments": [
+    "torso",
+    "tail",
+    "head",
+    "back_upper",
+    "back_lower",
+    "front_upper",
+    "front_lower"
+  ],
+  "joint_names": [
+    "tail_joint",
+    "head_joint",
+    "back_upper_joint",
+    "back_lower_joint",
+    "front_upper_joint",
+    "front_lower_joint"
+  ],
+  "motor_joints": [
+    "back_upper_joint",
+    "back_lower_joint",
+    "front_upper_joint",
+    "front_lower_joint"
+  ],
+  "n_motors": 4,
+  "healthy_z_range": [
+    0.2888,
+    3.1
+  ],
+  "healthy_angle_range": [
+    -1.0471975511965976,
+    1.0471975511965976
+  ],
+  "camera": {
+    "distance": 1.8,
+    "lookat_z": 0.4
+  },
+  "warnings": [],
+  "source": "pilot_p2.json"
+}

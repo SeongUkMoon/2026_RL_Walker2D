@@ -1,0 +1,90 @@
+{
+  "_ai_assumptions": [
+    "전체 높이 0.8 m를 기준으로 사진 속 마디 길이와 두께를 비례 추정함",
+    "head와 tail의 free 표시는 motor가 없는 수동 hinge 관절로 해석함",
+    "torso-upper hip은 양방향, upper-lower knee는 사용자 확인에 따라 같은 방향의 단방향 굽힘으로 해석함",
+    "별표는 별도 foot 마디가 아니라 front_lower와 back_lower 자체의 접지 표시로 해석함",
+    "그림에 보이는 앞다리와 뒷다리 체인만 모델링하고 숨은 반대편 다리는 복제하지 않음",
+    "원본에 색상 표시가 없어 마디 구분용 색상을 임의 선택함"
+  ],
+  "name": "pilot_p2",
+  "segments": [
+    {
+      "name": "torso",
+      "parent": null,
+      "start": [-0.32, 0.52],
+      "end": [0.32, 0.52],
+      "radius": 0.065,
+      "color": "brown"
+    },
+    {
+      "name": "tail",
+      "parent": "torso",
+      "start": [-0.32, 0.52],
+      "end": [-0.55, 0.55],
+      "radius": 0.025,
+      "joint_range": [-45, 45],
+      "motor": false,
+      "color": "brown"
+    },
+    {
+      "name": "head",
+      "parent": "torso",
+      "start": [0.32, 0.54],
+      "end": [0.49, 0.74],
+      "radius": 0.055,
+      "joint_range": [-30, 30],
+      "motor": false,
+      "color": "brown"
+    },
+    {
+      "name": "back_upper",
+      "parent": "torso",
+      "start": [-0.27, 0.48],
+      "end": [-0.27, 0.25],
+      "radius": 0.045,
+      "joint_range": [-70, 70],
+      "motor": true,
+      "color": "purple"
+    },
+    {
+      "name": "back_lower",
+      "parent": "back_upper",
+      "start": [-0.27, 0.25],
+      "end": [-0.15, 0.04],
+      "radius": 0.04,
+      "joint_range": [-110, 0],
+      "motor": true,
+      "friction": 1.9,
+      "color": "purple"
+    },
+    {
+      "name": "front_upper",
+      "parent": "torso",
+      "start": [0.27, 0.48],
+      "end": [0.27, 0.25],
+      "radius": 0.04,
+      "joint_range": [-70, 70],
+      "motor": true,
+      "color": "blue"
+    },
+    {
+      "name": "front_lower",
+      "parent": "front_upper",
+      "start": [0.27, 0.25],
+      "end": [0.39, 0.04],
+      "radius": 0.04,
+      "joint_range": [-110, 0],
+      "motor": true,
+      "friction": 1.9,
+      "color": "blue"
+    }
+  ],
+  "options": {
+    "strength": 1.0,
+    "fall_height_ratio": 0.55,
+    "fall_angle_deg": 60,
+    "frame_skip": 4,
+    "timestep": 0.002
+  }
+}

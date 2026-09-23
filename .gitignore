@@ -3,6 +3,11 @@
 venv/
 __pycache__/
 *.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
 
 # 참가자 산출물 (학습 결과, 영상). 예시 영상은 videos/demo/ 에만 둡니다.
 runs/

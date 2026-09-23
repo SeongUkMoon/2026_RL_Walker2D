@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/walker2d/character.schema.json",
+  "title": "Walker2D practice character",
+  "description": "손그림에서 변환한 2D capsule 관절 트리. parent 고유성/순환과 모터·발 권장 조건은 Python 검증기가 추가 검사합니다.",
+  "type": "object",
+  "required": ["name", "segments"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "segments": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 32,
+      "items": {"$ref": "#/$defs/segment"}
+    },
+    "options": {"$ref": "#/$defs/options"}
+  },
+  "patternProperties": {
+    "^_": {}
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "point": {
+      "type": "array",
+      "prefixItems": [
+        {"type": "number"},
+        {"type": "number"}
+      ],
+      "items": false,
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "jointRange": {
+      "description": "[최소, 최대] deg. 초기 각도 0을 반드시 포함합니다.",
+      "type": "array",
+      "prefixItems": [
+        {"type": "number", "minimum": -180, "maximum": 0},
+        {"type": "number", "minimum": 0, "maximum": 180}
+      ],
+      "items": false,
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "color": {
+      "oneOf": [
+        {
+          "enum": ["brown", "purple", "blue", "red", "green", "gray", "yellow", "white", "black"]
+        },
+        {
+          "type": "string",
+          "pattern": "^(?:(?:0(?:\\.\\d+)?|1(?:\\.0+)?)\\s+){3}(?:0(?:\\.\\d+)?|1(?:\\.0+)?)$"
+        }
+      ]
+    },
+    "segment": {
+      "type": "object",
+      "required": ["name", "parent", "start", "end"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "parent": {
+          "oneOf": [
+            {"type": "null"},
+            {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"}
+          ]
+        },
+        "start": {"$ref": "#/$defs/point"},
+        "end": {"$ref": "#/$defs/point"},
+        "radius": {
+          "type": "number",
+          "minimum": 0.005,
+          "maximum": 0.6,
+          "default": 0.05
+        },
+        "joint_range": {"$ref": "#/$defs/jointRange"},
+        "motor": {
+          "type": "boolean",
+          "default": true
+        },
+        "friction": {
+          "type": "number",
+          "minimum": 0.01,
+          "maximum": 10,
+          "default": 0.9
+        },
+        "color": {"$ref": "#/$defs/color"},
+        "rgba": {"$ref": "#/$defs/color"}
+      },
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "options": {
+      "type": "object",
+      "properties": {
+        "strength": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 10,
+          "default": 1
+        },
+        "fall_height_ratio": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "default": 0.55
+        },
+        "fall_angle_deg": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 180,
+          "default": 60
+        },
+        "frame_skip": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20,
+          "default": 4
+        },
+        "timestep": {
+          "type": "number",
+          "minimum": 0.0001,
+          "maximum": 0.02,
+          "default": 0.002
+        }
+      },
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    }
+  }
+}

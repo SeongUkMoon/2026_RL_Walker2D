@@ -11,31 +11,47 @@ characters/my_character.json 에 저장한 뒤 이 스크립트를 실행합니�
      -> videos/<이름>_drop.mp4 / _drop.png 저장 (--show 를 붙이면 창으로 바로 보기)
 
 사용 예
-  python 2_build_character.py                              characters/my_character.json
+  python 2_build_character.py                              기본 my_character 빌드 + 낙하 테스트
   python 2_build_character.py characters/my_character.json
+  python 2_build_character.py --validate-only              JSON 만 검사 (MuJoCo/렌더링 불필요)
   python 2_build_character.py dog --show                   예제 dog 를 빌드하고 창으로 보기
-  python 2_build_character.py my_character --no-video      영상 저장 생략 (빠름)
+  python 2_build_character.py my_character --no-video      렌더링/영상 저장 생략 (빠름)
 """
 import argparse
+import math
 import sys
 from pathlib import Path
 
-from walker_rl.character_env import make_env
-from walker_rl.runner import run_live, run_record, zero_policy
 from walker_rl.spec2mjcf import SpecError, build_character, load_spec, validate_spec
 from walker_rl.utils import CHARACTERS_DIR, VIDEOS_DIR, banner, kv
+
+
+def positive_finite_seconds(value: str) -> float:
+    try:
+        seconds = float(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("초는 숫자로 입력하세요.") from exc
+    if not math.isfinite(seconds) or seconds <= 0:
+        raise argparse.ArgumentTypeError("초는 0보다 큰 유한한 숫자여야 합니다.")
+    return seconds
 
 
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     p.add_argument("spec", nargs="?", default="my_character", help="캐릭터 이름 또는 json 경로 (기본 my_character)")
-    p.add_argument("--show", action="store_true", help="낙하 테스트를 창으로 보기")
-    p.add_argument("--seconds", type=float, default=3.0, help="낙하 테스트 시간(초). 기본 3")
-    p.add_argument("--no-video", action="store_true", help="낙하 테스트 영상 저장 생략")
+    mode = p.add_mutually_exclusive_group()
+    mode.add_argument("--show", action="store_true", help="낙하 테스트를 창으로 보기")
+    mode.add_argument("--no-video", action="store_true", help="렌더링과 낙하 테스트 영상/PNG 저장 생략")
+    mode.add_argument(
+        "--validate-only",
+        action="store_true",
+        help="JSON 구조와 학습 권장 조건만 검사하고 XML 생성/물리 테스트 없이 종료",
+    )
+    p.add_argument("--seconds", type=positive_finite_seconds, default=3.0, help="낙하 테스트 시간(초). 기본 3")
     args = p.parse_args()
 
     spec_path = Path(args.spec)
-    if spec_path.suffix != ".json":
+    if spec_path.suffix.lower() != ".json":
         spec_path = CHARACTERS_DIR / f"{spec_path.stem}.json"
     spec_path = spec_path.resolve()
     # characters/ 폴더 안의 파일이면 이름으로, 밖의 파일이면 경로로 부릅니다
@@ -45,6 +61,17 @@ def main():
     try:
         spec = load_spec(spec_path)
         warnings = validate_spec(spec)
+        if args.validate_only:
+            motors = [
+                segment for segment in spec["segments"]
+                if segment.get("parent") is not None and segment.get("motor", True)
+            ]
+            for warning in warnings:
+                print(f"  [경고] {warning}")
+            print("\n[통과] JSON spec 검증을 통과했습니다. XML 생성과 물리 테스트는 실행하지 않았습니다.")
+            kv("segment / motor 수", f'{len(spec["segments"])} / {len(motors)}')
+            print("\n다음 단계:  python 2_build_character.py " + str(args.spec))
+            return
         xml_path, meta = build_character(spec_path)
     except SpecError as e:
         print("\n[실패] " + str(e))
@@ -64,17 +91,23 @@ def main():
     kv("생성 파일", f"{xml_path.name}, {xml_path.stem}.meta.json")
 
     # ---- 낙하 테스트 ----
+    # validate-only 경로에서는 이 무거운 의존성(gymnasium/mujoco/imageio) 자체를 import 하지 않습니다.
+    from walker_rl.character_env import make_env
+    from walker_rl.runner import run_live, run_record, zero_policy
+
     print("\n낙하 테스트 (힘 없이 떨어뜨리기)...")
     if args.show:
         env = make_env(ref, render_mode="human")
         kv("observation / action 차원", f"{env.observation_space.shape[0]} / {env.action_space.shape[0]}")
         run_live(env, zero_policy(env), seconds=max(args.seconds, 3.0), print_every=0.5)
     else:
-        env = make_env(ref, render_mode="rgb_array")
+        render_mode = None if args.no_video else "rgb_array"
+        env = make_env(ref, render_mode=render_mode)
         kv("observation / action 차원", f"{env.observation_space.shape[0]} / {env.action_space.shape[0]}")
         out_mp4 = None if args.no_video else VIDEOS_DIR / f"{spec_path.stem}_drop.mp4"
+        out_png = None if args.no_video else VIDEOS_DIR / f"{spec_path.stem}_drop.png"
         res = run_record(env, zero_policy(env), seconds=args.seconds, stop_on_fall=True,
-                         out_mp4=out_mp4, out_png=VIDEOS_DIR / f"{spec_path.stem}_drop.png", verbose=True)
+                         out_mp4=out_mp4, out_png=out_png, verbose=True)
         if res["falls"] > 0:
             print(f"  -> 힘을 주지 않으면 {res['episode_seconds']}초 만에 넘어집니다. (정상입니다. 학습으로 균형을 잡게 됩니다)")
             print("     다만 0.3초도 안 돼서 넘어지면 다리가 너무 짧거나 몸통이 너무 위에 있는지 그림을 확인해 보세요.")

@@ -1,0 +1,49 @@
+{
+  "name": "pilot_p1",
+  "terrain": "flat",
+  "torso_z0": 0.975,
+  "height": 1.205,
+  "total_mass": 29.42,
+  "gear": 124.1,
+  "frame_skip": 4,
+  "segments": [
+    "torso",
+    "thigh_l",
+    "shin_l",
+    "foot_l",
+    "thigh_r",
+    "shin_r",
+    "foot_r"
+  ],
+  "joint_names": [
+    "thigh_l_joint",
+    "shin_l_joint",
+    "foot_l_joint",
+    "thigh_r_joint",
+    "shin_r_joint",
+    "foot_r_joint"
+  ],
+  "motor_joints": [
+    "thigh_l_joint",
+    "shin_l_joint",
+    "foot_l_joint",
+    "thigh_r_joint",
+    "shin_r_joint",
+    "foot_r_joint"
+  ],
+  "n_motors": 6,
+  "healthy_z_range": [
+    0.5363,
+    4.9
+  ],
+  "healthy_angle_range": [
+    -1.0471975511965976,
+    1.0471975511965976
+  ],
+  "camera": {
+    "distance": 2.41,
+    "lookat_z": 0.603
+  },
+  "warnings": [],
+  "source": "pilot_p1.json"
+}

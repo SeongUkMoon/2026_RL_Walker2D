@@ -3,6 +3,8 @@
 종이에 그린 2D 캐릭터를 물리 시뮬레이션(MuJoCo) 안에 세우고, 강화학습(PPO)으로 "스스로 걷는 컨트롤러"를 학습시키는 실습입니다.
 코드는 거의 쓰지 않습니다. 그림 → AI → JSON → 시뮬레이션, 말로 쓴 보상 → AI → 코드 → 학습의 흐름으로 진행합니다.
 
+> **변환 범위:** 이 실습은 그림의 외형·의상·표정을 그대로 모델링하는 이미지 변환기가 아닙니다. 손그림에 표시한 막대, 관절, 부모 관계, 발과 크기를 읽어 **2D 캡슐 관절 트리(rig)** 로 옮깁니다. 따라서 자유로운 완성 일러스트보다 옆모습 구조도처럼 그리고 라벨을 붙인 그림에서 훨씬 안정적입니다.
+
 ```
  [1교시] 종이에 그리기 ──(사진+프롬프트)──> AI ──> characters/my_character.json
              │                                             │
@@ -35,6 +37,7 @@
 4. (선택) 사진을 넣을 수 있는 AI 채팅(ChatGPT, Claude, Gemini 등) 계정을 노트북에서 로그인해 둡니다.
 
 문제가 생기면 setup.bat 창에 나온 내용을 캡처해서 보내 주세요. 대부분 "Python 이 PATH 에 없음" 또는 "경로에 한글" 문제입니다.
+기존 `.venv`가 있는데도 Python을 실행할 수 없다는 메시지가 나오면 원본 Python이 삭제되었을 수 있습니다. `.venv`를 `.venv_old`로 이름을 바꾼 뒤 `setup.bat`을 다시 실행하고, 정상 동작을 확인한 뒤 이전 폴더를 삭제하세요.
 
 ### 실습 중 명령 실행 방법
 `open_terminal.bat` 을 더블클릭하면 가상환경이 켜진 터미널이 열립니다. 거기에 아래 명령들을 입력합니다.
@@ -52,13 +55,35 @@
 | 15–25 | 캐릭터가 어떻게 정의되는지 설명: 마디(segment, 캡슐) + 관절(hinge joint) + 모터(actuator). `characters/dog.json` 을 열어 보고 `python 3_play.py dog` | `python 3_play.py dog --mode wiggle` <br> `python 3_play.py ostrich` |
 | 25–35 | **종이에 내 캐릭터 그리기** (옆모습, 마디마다 영문 이름, 관절에 동그라미, 발 표시, 키 m 단위) | — |
 | 35–45 | **AI 로 JSON 만들기**: `prompts/01_sketch_to_json.md` 의 프롬프트 + 사진 → 받은 JSON 을 `characters/my_character.json` 에 덮어쓰기 | 메모장 / VS Code |
-| 45–55 | **빌드 + 낙하 테스트 + 움직여 보기.** 오류가 나면 메시지를 AI 에게 그대로 붙여서 고치기 | `python 2_build_character.py` <br> `python 3_play.py my_character` |
+| 45–55 | **검증 + 빌드 + 낙하 테스트 + 움직여 보기.** 먼저 물리 엔진 없이 JSON을 검사하고, 통과하면 빌드. 오류가 나면 메시지를 AI 에게 그대로 붙여서 고치기 | `python 2_build_character.py --validate-only` <br> `python 2_build_character.py` <br> `python 3_play.py my_character` |
 | 55–60 | 서로의 캐릭터 구경, `--record` 로 영상 저장 | `python 3_play.py my_character --record` |
 
 **AI 없이도 됩니다.** `characters/my_character.json` 은 이미 동작하는 템플릿(이족 보행)이라, 숫자(길이·두께·관절 범위)만 바꿔도 새 캐릭터가 됩니다.
 `characters/README.md` 에 JSON 형식 설명이 있습니다.
 
 > 강사 팁: 1교시가 끝날 때 `python 4_train.py --character my_character --minutes 20` 을 켜 놓고 쉬는 시간을 보내면 2교시 시작 때 자기 캐릭터의 첫 학습 결과를 볼 수 있습니다.
+
+### 손그림 파일럿 사전 점검 및 결과
+
+실제 사진을 넣기 전에는 제공된 `dog` 예제로 아래 순서를 한 번 통과시키세요. 이 과정은 설치, JSON 검증, XML/물리, 짧은 학습, 결과 재생까지 검사하지만 사진 인식 품질은 검사하지 않습니다.
+
+```text
+python 0_check.py --no-window
+python 2_build_character.py dog --validate-only
+python 2_build_character.py dog --no-video --seconds 1
+python 4_train.py --character dog --steps 4096 --n-envs 2 --no-video --name preflight
+python 5_watch.py --character dog --seconds 3 --record
+```
+
+강사용 코드 회귀 테스트도 함께 실행할 수 있습니다.
+
+```text
+python -m unittest discover -s tests -v
+```
+
+모두 통과하면 코드 경로는 파일럿 준비가 된 것입니다.
+
+구조화된 손그림 3장(P1~P3)의 JSON 변환·검증·낙하·관절 구동 파일럿은 완료했습니다. 상세 판독 과정, 수정 횟수와 P1 reward tuning 결과는 [`pilot/pilot_log.md`](pilot/pilot_log.md)에 기록되어 있습니다. 다만 3장은 일반적인 성공률을 추정하기에는 작으므로, `JSON 무수정 통과율` 등을 수치로 주장하려면 같은 촬영 규칙으로 10~20장을 추가 검증해야 합니다.
 
 ---
 
@@ -97,17 +122,22 @@ python 4_train.py --character dog --from pretrained/dog --minutes 4        (my_r
 | `5_watch.py` | 학습 결과 재생 (`--pretrained`, `--character`, `--run`, `--record`) |
 | `6_plot.py` | 학습 곡선 비교 그래프 (videos/learning_curves.png) |
 | `my_reward.py` | **2교시에 수정하는 파일.** reward / termination / (선택) 추가 observation |
-| `rewards/` | 바로 써 볼 수 있는 reward 예시 5개 (천천히 꼿꼿하게 / 점프 / 제자리 서기 / 뒤로 걷기 / 머리 닿으면 실패). `--reward rewards/reward_jump.py` |
-| `characters/` | 캐릭터 JSON spec 과 생성된 XML. `walker`(기본), `biped`, `dog`, `ostrich`, `my_character`(템플릿) |
+| `rewards/` | 일반 reward 예시 5개와 P1 파일럿 전용 자연 보행 튜닝본(v1~v4). 일반 예: `--reward rewards/reward_jump.py`; P1 최종 기준은 v3이며 v4는 미채택 비교 실험 |
+| `characters/` | 캐릭터 JSON spec 과 생성된 XML. `walker`(기본), `biped`, `dog`, `ostrich`, `my_character`(템플릿), `pilot_p1/p2/p3` |
+| `characters/character.schema.json` | AI 출력 형식을 함께 전달하거나 편집기에서 검사할 수 있는 JSON Schema |
+| `pilot/` | 손그림 원본, raw/final JSON, 판독·검증·학습 결과 로그 |
 | `prompts/` | AI 에게 줄 프롬프트 카드 (스케치→JSON, 말→reward 코드, 오류 해결) |
 | `pretrained/` | 미리 학습된 모델 (walker, biped, dog, ostrich). `5_watch.py --pretrained 이름`, `4_train.py --from pretrained/이름` |
+| `tests/` | JSON 검증, 실행 안전장치, 저장 snapshot, 영상 runner, P1 reward 회귀 테스트 |
 | `walker_rl/` | 내부 코드 (JSON→XML 변환기, 환경, 학습 도우미). 읽어 보기만 하면 됩니다 |
-| `runs/`, `videos/` | 학습 결과와 영상이 저장되는 곳 (자동 생성) |
+| `runs/`, `videos/` | 학습 결과와 영상이 저장되는 로컬 폴더. `videos/demo/` 외에는 `.gitignore`로 GitHub에 포함되지 않음 |
 
 ### 자주 쓰는 옵션
 - `--record` : 창 대신 `videos/` 에 MP4 + 장면 PNG 저장 (1_run_walker, 3_play, 5_watch)
+- `--validate-only` : MuJoCo나 렌더링 없이 캐릭터 JSON 구조와 물리 권장 조건만 검사 (2_build_character)
+- `--no-video` : 낙하 테스트는 하되 렌더러와 MP4/PNG 생성을 생략 (2_build_character)
 - `--mode random|wiggle|zero`, `--strength 0.3` : 움직임 종류와 세기 (1_run_walker, 3_play)
-- `--terrain flat|bumps|bumps_hard` : 평지 / 장애물 지형 (모든 스크립트)
+- `--terrain flat|bumps|bumps_hard` : 평지 / 장애물 지형 (`1_run_walker.py`, `3_play.py`, `4_train.py`, `5_watch.py`)
 - `--minutes 10` 또는 `--steps 500000` : 학습 예산 (4_train)
 - `--reward my_reward_v2` : 다른 reward 파일로 학습 (4_train). 파일은 프로젝트 폴더에 두세요
 - `--from pretrained/dog` : 이어서 학습 (4_train)
@@ -137,6 +167,20 @@ python 4_train.py --character dog --from pretrained/dog --minutes 4        (my_r
 `my_reward.py` 의 가중치 `W` 를 바꾸거나 `compute_reward()` 를 고칩니다. 쓸 수 있는 값은 `state.x_vel`(전진 속도), `state.height_ratio`(높이 비율), `state.angle`(기울기), `state.energy`(힘 사용량), `state.touching("head")`(바닥 접촉) 등이며 파일 상단에 정리되어 있습니다.
 말로 쓴 보상을 코드로 바꾸는 프롬프트는 `prompts/02_reward_from_text.md` 에 있습니다.
 
+고급 reward가 발 위치·속도를 사용하려면 파일에 `USES_SEGMENT_KINEMATICS = True`를 선언한 뒤 `state.segment_pos(name)`과 `state.segment_vel(name)`을 사용할 수 있습니다. 값은 segment **body 원점**의 world `[x, y, z]` 위치(m)와 속도(m/s)이며, 선언한 reward에서만 계산됩니다. `extra_observation()`을 추가할 때는 항상 같은 길이를 반환해야 합니다. 길이를 바꾸면 기존 모델과 observation 차원이 달라지므로 `--from`으로 이어 학습할 수 없습니다.
+
+### P1 자연 보행 실험 재현
+
+`reward_p1_natural_walk*.py`는 `pilot_p1`의 segment 이름과 정확한 다리 길이에 맞춘 **P1 전용 실험**이며 다른 캐릭터의 범용 reward가 아닙니다. 검증한 학습 순서는 v1을 새로 학습하고, 같은 21차원 observation을 쓰는 v2와 v3를 차례로 fine-tuning하는 방식입니다.
+
+```text
+python 4_train.py --character pilot_p1 --reward rewards/reward_p1_natural_walk.py --minutes 5 --n-envs 8 --seed 0 --name natural_v1_5min
+python 4_train.py --character pilot_p1 --reward rewards/reward_p1_natural_walk_v2.py --from runs/<v1_run> --minutes 5 --n-envs 8 --seed 0 --name natural_v2_5min
+python 4_train.py --character pilot_p1 --reward rewards/reward_p1_natural_walk_v3.py --from runs/<v2_run> --minutes 5 --n-envs 8 --seed 0 --name natural_v3_5min
+```
+
+기존 `my_reward` 모델은 observation 17차원이고 v1~v4는 phase/contact를 더한 21차원이므로 둘 사이를 `--from`으로 연결하면 안 됩니다. v3를 최종 기준으로 채택했고 v4는 미끄럼은 줄었지만 보폭 대칭성이 나빠져 미채택했습니다. 정량 비교는 [`pilot/pilot_log.md`](pilot/pilot_log.md)를 참고하세요. `runs/`와 비-demo 영상은 로컬 산출물이므로 GitHub 저장소에는 최종 모델과 재생 영상이 포함되지 않습니다.
+
 ---
 
 ## 7. 자주 나오는 문제
@@ -144,15 +188,16 @@ python 4_train.py --character dog --from pretrained/dog --minutes 4        (my_r
 | 증상 | 해결 |
 |---|---|
 | `python` 을 찾을 수 없다 / 'python'은 내부 또는 외부 명령이 아닙니다 | Python 설치 시 "Add to PATH" 를 안 한 것. 재설치(Modify → Add to PATH) 후 setup.bat 다시 실행 |
-| setup.bat 의 한글이 깨져 보인다 / `'defined'은(는) 내부 또는 외부 명령...` 같은 오류가 여러 줄 나온다 | bat 파일은 한국어 Windows 콘솔 인코딩(CP949)으로 저장되어 있습니다. 메모장 등으로 열어 **UTF-8 로 다시 저장하면 이 오류가 납니다** — GitHub 에서 받은 원본을 그대로 쓰세요. 시스템 로캘을 'Beta: UTF-8' 로 바꿔 둔 PC 에서는 글자만 깨지고 동작은 정상입니다 |
+| setup.bat 의 한글이 깨져 보인다 / `'defined'은(는) 내부 또는 외부 명령...` 같은 오류가 여러 줄 나온다 | `.bat` 파일은 **CP949 인코딩 + Windows(CRLF) 줄바꿈**이어야 합니다. VS Code 오른쪽 아래에서 인코딩은 `Korean (Windows 949)`, 줄바꿈은 `CRLF`로 바꿔 저장하세요. 시스템 로캘을 'Beta: UTF-8' 로 바꾼 PC에서는 글자만 깨질 수 있지만 명령은 실행됩니다. |
 | setup.bat 에서 패키지 설치 실패 | 인터넷/회사 프록시 문제. 핫스팟으로 다시 시도. 그래도 안 되면 `.venv\Scripts\python -m pip install -r requirements.txt` 를 터미널에서 직접 실행해 오류 확인 |
-| XML 을 열 수 없다는 오류 (경로 관련) | 폴더 경로에 한글/공백이 있는 경우. `C:\Walker2D` 로 옮기기 |
+| `.venv`가 있는데 Python을 실행할 수 없다고 나옴 | 원본 Python 3.11이 삭제·이동되어 가상환경이 깨진 상태. `.venv`를 `.venv_old`로 이름 변경 → `setup.bat` 재실행 → 정상 확인 후 이전 폴더 삭제 |
+| XML 을 열 수 없다는 오류 (경로 관련) | 폴더 경로에 한글 등 비 ASCII 문자가 있는 경우. `C:\Walker2D` 로 옮기기 |
 | 창이 안 뜬다 / OpenGL 오류 | 그래픽 드라이버 업데이트. 안 되면 `--record` 로 영상 저장 방식으로 진행 (실습 가능) |
 | `2_build_character.py` 에서 `[실패] spec 오류` | 메시지가 어느 마디의 무엇이 잘못됐는지 알려 줍니다. 메시지 + JSON 을 AI 에게 붙여 "고쳐 달라" 하면 됩니다 |
 | 캐릭터가 바로 넘어지거나 튕겨 나간다 | 마디가 서로 겹치게 그려졌거나 관절 범위가 너무 큼. `--mode zero` 로 떨어뜨려 보고 `joint_range` 를 좁히거나 `options.strength` 를 0.5 로 |
 | 학습해도 가만히 서 있기만 한다 | `W["alive"]` 가 상대적으로 큼. `W["forward"]` 를 키우거나 `alive` 를 0.5 로. 또는 더 오래 학습 |
 | 학습 결과가 이상한 자세로 미끄러져 간다 | 보상이 "앞으로만 가면 됨" 이라서 정직하게 최적화한 결과입니다. `posture`, `height` 항을 켜서 자세를 요구하세요 (2교시의 핵심 토론 주제) |
-| `5_watch.py` 에서 observation 차원이 다르다는 오류 | 학습 후에 캐릭터 JSON 이나 `extra_observation` 이 바뀜. 다시 학습하거나 원래대로 되돌리기 |
+| `5_watch.py` 또는 `--from`에서 observation/action 차원이 다르다는 오류 | action 차이는 캐릭터 motor 구조, observation 차이는 캐릭터 또는 reward의 `extra_observation` 길이가 다른 경우가 많습니다. `--from`은 두 차원이 모두 같을 때만 사용하고, 다르면 새로 학습하세요. 새 run 재생은 `--run`으로 저장 snapshot을 사용하세요 |
 | 학습이 너무 느리다 (steps/s 가 1000 미만) | 노트북 전원 연결(고성능 모드), 다른 프로그램 종료. `--n-envs 4` 로 줄여 보기 |
 
 ---

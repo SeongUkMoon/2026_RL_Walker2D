@@ -10,13 +10,15 @@
   python 5_watch.py --list                      저장된 run 목록 보기
 """
 import argparse
+import math
 import sys
 from pathlib import Path
 
 from walker_rl.character_env import make_env
 from walker_rl.runner import describe_result, run_live, run_record
 from walker_rl.training import load_normalizer, load_run, make_policy_fn
-from walker_rl.utils import PRETRAINED_DIR, TERRAINS, VIDEOS_DIR, banner, kv, latest_run, list_runs, read_json
+from walker_rl.utils import (PRETRAINED_DIR, TERRAINS, VIDEOS_DIR, banner, kv, latest_run,
+                             list_runs, read_json, resolve_run_artifact)
 
 
 def main():
@@ -32,6 +34,9 @@ def main():
     p.add_argument("--stochastic", action="store_true", help="action 에 무작위성 유지 (기본은 deterministic)")
     p.add_argument("--seed", type=int, default=None)
     args = p.parse_args()
+
+    if not math.isfinite(args.seconds) or args.seconds <= 0:
+        p.error("--seconds 는 유한한 0보다 큰 수여야 합니다.")
 
     if args.list:
         banner("저장된 run 목록 (오래된 순)")
@@ -62,8 +67,36 @@ def main():
         print("[실패] " + str(e))
         sys.exit(1)
 
-    character = cfg.get("character_ref") or cfg["character"]
-    terrain = args.terrain or cfg.get("terrain", "flat")
+    character_ref = cfg.get("character_ref") or cfg["character"]
+    trained_terrain = cfg.get("terrain", "flat")
+    terrain = args.terrain or trained_terrain
+    using_snapshot = False
+    try:
+        if terrain == trained_terrain:
+            snapshot_xml = resolve_run_artifact(run_dir, cfg, "xml")
+            snapshot_meta = resolve_run_artifact(run_dir, cfg, "meta")
+            if bool(snapshot_xml) != bool(snapshot_meta):
+                raise ValueError("캐릭터 XML/meta snapshot 중 하나만 기록되어 있습니다.")
+            if snapshot_xml is not None:
+                character = str(snapshot_xml)
+                using_snapshot = True
+            else:
+                character = character_ref
+        else:
+            source_json = resolve_run_artifact(run_dir, cfg, "source_json")
+            if source_json is not None:
+                character = str(source_json)
+            elif "character_artifacts" in cfg:
+                raise ValueError(
+                    "이 run에는 다른 지형을 다시 만들 원본 character JSON snapshot이 없습니다. "
+                    f"학습 지형({trained_terrain})으로 재생하거나 원본 JSON 캐릭터로 다시 학습하세요."
+                )
+            else:
+                character = character_ref
+                print("  [주의] 예전 형식의 run이라 캐릭터 snapshot이 없습니다. 현재 characters/ 파일로 다른 지형을 만듭니다.")
+    except (FileNotFoundError, ValueError) as e:
+        print("[실패] " + str(e))
+        sys.exit(1)
     reward = cfg.get("reward", "my_reward")
     # 학습 때 쓴 reward 파일이 run 폴더에 있으면 그것을 사용 (termination 조건을 같게 하기 위해)
     reward_used = run_dir / "reward_used.py"
@@ -71,16 +104,27 @@ def main():
 
     banner(f"재생: {run_dir}")
     kv("character / terrain / reward", f'{cfg["character"]} / {terrain} / {reward}')
+    if using_snapshot:
+        kv("캐릭터", "학습 당시 XML/meta snapshot (SHA-256 확인 완료)")
     res_file = run_dir / "result.json"
     if res_file.exists():
         res = read_json(res_file)
-        kv("학습 step 수 / 마지막 평균 reward", f"{res.get('timesteps_total', '?'):,} / {res.get('mean_reward_last')}")
+        total_steps = res.get("timesteps_total")
+        total_steps_text = f"{total_steps:,}" if isinstance(total_steps, int) else "?"
+        kv("학습 step 수 / 마지막 평균 reward", f"{total_steps_text} / {res.get('mean_reward_last')}")
 
     render_mode = "rgb_array" if args.record else "human"
     env = make_env(character, render_mode=render_mode, reward_module=reward_arg, terrain=terrain)
-    if env.observation_space.shape != model.observation_space.shape:
-        print(f"[실패] observation 차원이 다릅니다 (환경 {env.observation_space.shape[0]}, 모델 {model.observation_space.shape[0]}). "
-              "캐릭터 JSON 이나 extra_observation 이 학습 이후에 바뀌었는지 확인하세요.")
+    env_obs_shape = getattr(env.observation_space, "shape", None)
+    model_obs_shape = getattr(model.observation_space, "shape", None)
+    env_action_shape = getattr(env.action_space, "shape", None)
+    model_action_shape = getattr(model.action_space, "shape", None)
+    if env_obs_shape != model_obs_shape or env_action_shape != model_action_shape:
+        print("[실패] 환경과 모델의 공간 차원이 다릅니다.")
+        print(f"       observation: 환경 {env_obs_shape}, 모델 {model_obs_shape}")
+        print(f"       action:      환경 {env_action_shape}, 모델 {model_action_shape}")
+        print("       캐릭터나 extra_observation 이 학습 이후에 바뀌었는지 확인하세요.")
+        env.close()
         sys.exit(1)
     policy = make_policy_fn(model, load_normalizer(stats_path), deterministic=not args.stochastic)
 

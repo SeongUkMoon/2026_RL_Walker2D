@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import argparse
+import math
+from pathlib import Path
 
 from .character_env import make_env
 from .runner import describe_result, random_policy, run_live, run_record, wiggle_policy, zero_policy
@@ -14,6 +16,26 @@ MODES = {
 }
 
 
+def _positive_float(value: str) -> float:
+    try:
+        number = float(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("숫자를 입력하세요.") from exc
+    if not math.isfinite(number) or number <= 0:
+        raise argparse.ArgumentTypeError("0보다 큰 유한한 값을 입력하세요.")
+    return number
+
+
+def _strength(value: str) -> float:
+    try:
+        number = float(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("숫자를 입력하세요.") from exc
+    if not math.isfinite(number) or not 0.0 <= number <= 1.0:
+        raise argparse.ArgumentTypeError("0에서 1 사이의 값을 입력하세요.")
+    return number
+
+
 def build_parser(default_character: str, description: str) -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=description, formatter_class=argparse.RawTextHelpFormatter)
     if default_character is None:
@@ -21,8 +43,8 @@ def build_parser(default_character: str, description: str) -> argparse.ArgumentP
                        help="캐릭터 이름 (characters/<이름>.json) 또는 json 경로. 기본: my_character")
     p.add_argument("--mode", choices=list(MODES), default="random",
                    help="\n".join(f"{k:7s}: {v}" for k, v in MODES.items()))
-    p.add_argument("--strength", type=float, default=0.5, help="action 세기 0~1 (기본 0.5)")
-    p.add_argument("--seconds", type=float, default=20.0, help="실행 시간(시뮬레이션 초). 기본 20")
+    p.add_argument("--strength", type=_strength, default=0.5, help="action 세기 0~1 (기본 0.5)")
+    p.add_argument("--seconds", type=_positive_float, default=20.0, help="실행 시간(시뮬레이션 초). 기본 20")
     p.add_argument("--terrain", choices=TERRAINS, default="flat", help="지형: flat(평지) / bumps / bumps_hard")
     p.add_argument("--record", action="store_true", help="창 대신 videos/ 폴더에 MP4 + PNG 로 저장")
     p.add_argument("--seed", type=int, default=None)
@@ -50,7 +72,8 @@ def run(character: str, args) -> None:
     print()
     policy = make_policy(env, args.mode, args.strength)
     if args.record:
-        name = str(character).replace("/", "_").replace("\\", "_").replace(".json", "")
+        # 절대 JSON 경로를 넘겨도 드라이브 문자(:) 등이 출력 파일명에 섞이지 않게 합니다.
+        name = Path(str(character)).stem
         stem = f"{name}_{args.mode}" + (f"_{args.terrain}" if args.terrain != "flat" else "")
         res = run_record(env, policy, seconds=args.seconds, seed=args.seed,
                          out_mp4=VIDEOS_DIR / f"{stem}.mp4", out_png=VIDEOS_DIR / f"{stem}.png")

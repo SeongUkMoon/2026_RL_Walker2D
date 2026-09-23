@@ -7,6 +7,7 @@
 | `dog.json` | 사족(옆모습이라 다리 2개) 예제. 모터 4개 |
 | `ostrich.json` | 타조. 3마디 다리, 목/머리는 모터 없음. 모터 6개 |
 | `my_character.json` | **내 캐릭터 템플릿** (biped 와 같은 구조, 설명 주석 포함). 이 파일을 수정하거나 AI 가 만든 JSON 으로 덮어씁니다 |
+| `pilot_p1.json`, `pilot_p2.json`, `pilot_p3.json` | 손그림 파일럿에서 확정한 기준형 이족·동물형·조류형 캐릭터. 판독과 검증 기록은 `../pilot/pilot_log.md` |
 | `*.xml`, `*.meta.json` | `2_build_character.py` 가 만드는 생성물 (직접 수정하지 않습니다) |
 | `_generated/` | 지형(terrain) 옵션용으로 자동 생성되는 XML |
 

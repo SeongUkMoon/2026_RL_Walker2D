@@ -1,2 +1,6 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Windows command scripts must keep CRLF even in source archives (ZIP).
+# Mark them as non-text so Git does not normalize their line endings to LF.
+*.bat -text

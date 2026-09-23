@@ -23,6 +23,7 @@ import numpy as np
 import torch
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import BaseCallback
+from stable_baselines3.common.running_mean_std import RunningMeanStd
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecMonitor, VecNormalize
 
 from .character_env import make_env
@@ -50,10 +51,12 @@ def default_n_envs() -> int:
 
 def make_vec_env(character: str, reward_module: str | None, terrain: str = "flat",
                  n_envs: int = 8, subproc: bool = False, seed: int = 0,
-                 normalize_stats: str | Path | None = None, training: bool = True):
+                 normalize_stats: str | Path | None = None, training: bool = True,
+                 reset_reward_stats: bool = False):
     """
     학습용 벡터 환경을 만듭니다.
-    normalize_stats 를 주면 저장된 VecNormalize 통계를 이어서 사용합니다 (이어 학습 / fine-tuning).
+    normalize_stats 를 주면 저장된 VecNormalize 관측 통계를 이어서 사용합니다 (이어 학습 / fine-tuning).
+    reward 함수를 바꿔 fine-tuning 할 때는 reset_reward_stats=True 로 이전 return 통계를 버릴 수 있습니다.
     """
     def _factory(rank: int):
         def _init():
@@ -69,6 +72,9 @@ def make_vec_env(character: str, reward_module: str | None, terrain: str = "flat
         venv = VecNormalize.load(str(normalize_stats), venv)
         venv.training = training
         venv.norm_reward = True
+        if reset_reward_stats:
+            venv.ret_rms = RunningMeanStd(shape=())
+            venv.returns = np.zeros(venv.num_envs, dtype=np.float64)
     else:
         venv = VecNormalize(venv, norm_obs=True, norm_reward=True, clip_obs=10.0, gamma=PPO_KWARGS["gamma"])
     return venv

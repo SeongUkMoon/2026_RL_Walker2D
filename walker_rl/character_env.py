@@ -57,6 +57,9 @@ class State:
       action        : 이번 스텝의 action 배열 (-1 ~ 1). 순서는 motor_joints
       contacts      : 지금 바닥(또는 장애물)에 닿아 있는 segment 이름들 (예: ("foot_l", "foot_r"))
       segment_names : 모든 segment 이름
+      segment_positions / segment_velocities
+                    : reward가 ``USES_SEGMENT_KINEMATICS = True``를 선언한 경우에만
+                      채워지는 body 원점의 world [x, y, z] 위치(m)와 속도(m/s)
     """
 
     time: float
@@ -75,6 +78,8 @@ class State:
     motor_joints: tuple
     contacts: tuple
     segment_names: tuple
+    segment_positions: np.ndarray | None = None
+    segment_velocities: np.ndarray | None = None
 
     # ---- 편의 속성 ----
     @property
@@ -108,6 +113,30 @@ class State:
         """주어진 segment 중 하나라도 바닥에 닿아 있으면 True"""
         return any(n in self.contacts for n in names)
 
+    def _segment_index(self, name: str) -> int:
+        try:
+            return self.segment_names.index(name)
+        except ValueError as e:
+            raise KeyError(f"알 수 없는 segment: {name}") from e
+
+    def segment_pos(self, name: str) -> np.ndarray:
+        """segment body 원점의 world [x, y, z] 위치(m) snapshot을 반환한다."""
+        if self.segment_positions is None:
+            raise RuntimeError(
+                "segment 위치가 계산되지 않았습니다. reward 모듈에 "
+                "USES_SEGMENT_KINEMATICS = True 를 선언하세요."
+            )
+        return self.segment_positions[self._segment_index(name)].copy()
+
+    def segment_vel(self, name: str) -> np.ndarray:
+        """segment body 원점의 world [vx, vy, vz] 속도(m/s) snapshot을 반환한다."""
+        if self.segment_velocities is None:
+            raise RuntimeError(
+                "segment 속도가 계산되지 않았습니다. reward 모듈에 "
+                "USES_SEGMENT_KINEMATICS = True 를 선언하세요."
+            )
+        return self.segment_velocities[self._segment_index(name)].copy()
+
     def as_dict(self) -> dict:
         return {
             "time": round(self.time, 2),
@@ -125,11 +154,16 @@ class State:
 # reward 모듈 불러오기
 # --------------------------------------------------------------------------------------
 def load_reward_module(name_or_path: str | ModuleType | None) -> ModuleType | None:
-    """'my_reward' 같은 모듈 이름 또는 .py 경로를 받아 import 합니다. None 이면 None."""
+    """
+    'my_reward' 같은 모듈 이름 또는 .py 경로를 받아 매번 새 모듈 객체로 읽습니다.
+
+    병렬 환경들이 module 전역 변수를 우연히 공유하지 않게 하기 위한 동작입니다. 이미 만든
+    ModuleType 객체를 직접 넘긴 경우에만 호출자가 그 객체의 공유 여부를 책임집니다.
+    """
     if name_or_path is None or isinstance(name_or_path, ModuleType):
         return name_or_path
     p = Path(name_or_path)
-    if p.suffix == ".py":
+    if p.suffix.lower() == ".py":
         if not p.exists():
             raise FileNotFoundError(f"reward 파일을 찾을 수 없습니다: {p}")
         spec = importlib.util.spec_from_file_location(p.stem, p)
@@ -137,9 +171,16 @@ def load_reward_module(name_or_path: str | ModuleType | None) -> ModuleType | No
         spec.loader.exec_module(mod)  # type: ignore[union-attr]
         return mod
     name = str(name_or_path)
-    if name.endswith(".py"):
+    if name.lower().endswith(".py"):
         name = name[:-3]
     try:
+        spec = importlib.util.find_spec(name)
+        # 사용자 reward의 일반적인 .py/.pyc 모듈은 import cache를 거치지 않고 새로 실행합니다.
+        # built-in/frozen/namespace 모듈처럼 새 인스턴스를 만들 수 없는 경우만 표준 import로 폴백합니다.
+        if spec is not None and spec.loader is not None and spec.origin not in (None, "built-in", "frozen"):
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            return mod
         return importlib.import_module(name)
     except ModuleNotFoundError as e:
         raise FileNotFoundError(f'reward 모듈 "{name}" 을(를) 찾을 수 없습니다. 프로젝트 폴더에 {name}.py 가 있어야 합니다. ({e})')
@@ -168,6 +209,24 @@ class CharacterEnv(gym.Wrapper):
         self.joint_names = tuple(meta["joint_names"])
         self.motor_joints = tuple(meta["motor_joints"])
         self.segment_names = tuple(meta["segments"])
+        self._needs_segment_kinematics = bool(
+            getattr(self.reward_module, "USES_SEGMENT_KINEMATICS", False)
+        )
+        self._segment_body_ids = np.zeros(0, dtype=np.int32)
+        if self._needs_segment_kinematics:
+            body_ids = [
+                mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, name)
+                for name in self.segment_names
+            ]
+            missing = [
+                name for name, body_id in zip(self.segment_names, body_ids)
+                if body_id < 0
+            ]
+            if missing:
+                raise ValueError(
+                    "meta의 segment가 MuJoCo body에 없습니다: " + ", ".join(missing)
+                )
+            self._segment_body_ids = np.asarray(body_ids, dtype=np.int32)
 
         # geom id -> segment(body) 이름, 바닥/장애물 geom (world body 에 붙은 geom) 찾기
         self._geom_body_name = {}
@@ -181,14 +240,14 @@ class CharacterEnv(gym.Wrapper):
 
         self._step = 0
         self._height_init = float(meta["torso_z0"])
-        self._n_extra = 0
+        self._n_extra: int | None = None
+        self._has_extra_observation = getattr(self.reward_module, "extra_observation", None) is not None
 
         # extra_observation 이 있으면 길이를 알아내기 위해 한 번 reset 해 본다
         obs, _ = self.env.reset()
         st = self._make_state(np.zeros(len(self.motor_joints), dtype=np.float32))
         extra = self._extra_obs(st)
-        self._n_extra = len(extra)
-        n = int(np.prod(self.env.observation_space.shape)) + self._n_extra
+        n = int(np.prod(self.env.observation_space.shape)) + int(extra.size)
         self.observation_space = gym.spaces.Box(low=-np.inf, high=np.inf, shape=(n,), dtype=np.float64)
 
     # ---- 내부 ----
@@ -205,6 +264,33 @@ class CharacterEnv(gym.Wrapper):
 
     def _make_state(self, action: np.ndarray) -> State:
         q, v = self.data.qpos, self.data.qvel
+        segment_positions = None
+        segment_velocities = None
+        if self._needs_segment_kinematics:
+            # mj_step 직후 qpos/qvel과 파생 body 좌표 사이에 한 physics tick 지연이
+            # 남지 않도록 위치/속도 파이프라인만 동기화한다. contact 배열은 마지막
+            # collision pass의 값이라 최대 한 physics tick 차이가 날 수 있다.
+            mujoco.mj_kinematics(self.model, self.data)
+            mujoco.mj_comPos(self.model, self.data)
+            mujoco.mj_comVel(self.model, self.data)
+            segment_positions = np.array(
+                self.data.xpos[self._segment_body_ids], dtype=np.float64, copy=True
+            )
+            segment_velocities = np.empty(
+                (len(self._segment_body_ids), 3), dtype=np.float64
+            )
+            object_velocity = np.empty(6, dtype=np.float64)
+            for i, body_id in enumerate(self._segment_body_ids):
+                # xpos와 같은 regular body frame 원점의 속도를 얻으려면 XBODY를 쓴다.
+                mujoco.mj_objectVelocity(
+                    self.model,
+                    self.data,
+                    mujoco.mjtObj.mjOBJ_XBODY,
+                    int(body_id),
+                    object_velocity,
+                    0,
+                )
+                segment_velocities[i] = object_velocity[3:6]
         return State(
             time=float(self.data.time),
             step=self._step,
@@ -222,19 +308,61 @@ class CharacterEnv(gym.Wrapper):
             motor_joints=self.motor_joints,
             contacts=self._contacts(),
             segment_names=self.segment_names,
+            segment_positions=segment_positions,
+            segment_velocities=segment_velocities,
         )
 
     def _extra_obs(self, state: State) -> np.ndarray:
         fn = getattr(self.reward_module, "extra_observation", None)
         if fn is None:
-            return np.zeros(0)
-        extra = np.asarray(fn(state), dtype=np.float64).ravel()
-        return np.nan_to_num(extra)
+            if self._n_extra is None:
+                self._n_extra = 0
+            return np.zeros(0, dtype=np.float64)
+        if not callable(fn):
+            raise TypeError(
+                "extra_observation 은 함수여야 합니다.\n"
+                "  예: def extra_observation(state): return np.array([...], dtype=float)"
+            )
+        try:
+            raw = fn(state)
+        except Exception as e:
+            raise RuntimeError(f"extra_observation 실행 중 오류가 났습니다: {type(e).__name__}: {e}") from e
+        try:
+            extra = np.asarray(raw, dtype=np.float64).ravel()
+        except (TypeError, ValueError) as e:
+            raise ValueError(
+                "extra_observation 반환값을 숫자 배열로 바꿀 수 없습니다. "
+                "float 또는 1차원 숫자 배열을 return 하세요."
+            ) from e
+
+        bad = np.flatnonzero(~np.isfinite(extra))
+        if bad.size:
+            where = ", ".join(str(int(i)) for i in bad[:5])
+            more = " ..." if bad.size > 5 else ""
+            raise ValueError(
+                f"extra_observation 에 NaN/inf 가 있습니다 (인덱스 {where}{more}).\n"
+                "  값을 숨기지 말고 계산식의 0 나누기, overflow 등을 수정하세요."
+            )
+
+        size = int(extra.size)
+        if self._n_extra is None:
+            self._n_extra = size
+        elif size != self._n_extra:
+            raise ValueError(
+                "extra_observation 길이가 실행 중 바뀌었습니다: "
+                f"처음 {self._n_extra}개, 지금 {size}개.\n"
+                "  observation 길이는 항상 같아야 합니다. 조건에 따라 값을 빼지 말고 0 등의 고정값을 넣으세요."
+            )
+        return extra
 
     def _augment(self, obs: np.ndarray, state: State) -> np.ndarray:
-        if self._n_extra == 0:
+        # 처음에 빈 배열을 반환한 함수도 매번 검사하여 이후 길이가 달라지는 실수를 잡습니다.
+        if not self._has_extra_observation:
             return obs
-        return np.concatenate([obs, self._extra_obs(state)])
+        extra = self._extra_obs(state)
+        if extra.size == 0:
+            return obs
+        return np.concatenate([obs, extra])
 
     # ---- gym API ----
     def reset(self, **kwargs):
@@ -249,15 +377,24 @@ class CharacterEnv(gym.Wrapper):
         obs, base_reward, terminated, truncated, info = self.env.step(action)
         self._step += 1
         state = self._make_state(action)
-        reward = float(base_reward)
+        try:
+            reward = float(base_reward)
+        except (TypeError, ValueError) as e:
+            raise ValueError(f"기본 환경 reward 가 숫자가 아닙니다: {base_reward!r}") from e
+        if not math.isfinite(reward):
+            raise ValueError(f"기본 환경 reward 에 NaN/inf 가 있습니다: {base_reward!r}")
         if self.reward_module is not None:
             fn = getattr(self.reward_module, "compute_reward", None)
             if fn is not None:
                 reward = fn(state, float(base_reward), info)
-                if not isinstance(reward, (int, float, np.floating)) or not math.isfinite(float(reward)):
+                if (
+                    isinstance(reward, (bool, np.bool_))
+                    or not isinstance(reward, (int, float, np.integer, np.floating))
+                    or not math.isfinite(float(reward))
+                ):
                     raise ValueError(
-                        f"compute_reward 가 숫자가 아닌 값을 돌려줬습니다: {reward!r}\n"
-                        "  my_reward.py 의 compute_reward 는 반드시 float 하나를 return 해야 합니다."
+                        f"compute_reward 가 유한한 숫자가 아닌 값을 돌려줬습니다: {reward!r}\n"
+                        "  my_reward.py 의 compute_reward 는 반드시 NaN/inf가 아닌 float 하나를 return 해야 합니다."
                     )
                 reward = float(reward)
             fn_t = getattr(self.reward_module, "is_terminated", None)

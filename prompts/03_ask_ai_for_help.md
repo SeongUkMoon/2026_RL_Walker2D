@@ -27,5 +27,5 @@ python 2_build_character.py
 | `parent "xxx" 라는 segment 가 없습니다` | 이름 오타 | 마디 이름과 parent 이름을 똑같이 |
 | `ModuleNotFoundError: No module named 'mujoco'` | 가상환경이 안 켜졌거나 설치가 안 됨 | `open_terminal.bat` 으로 터미널을 열었는지 확인, 아니면 `setup.bat` 다시 |
 | `compute_reward 가 숫자가 아닌 값을 돌려줬습니다` | reward 함수가 return 을 빼먹었거나 배열을 돌려줌 | `return float(r)` 로 끝나는지 확인 |
-| `observation 차원이 다릅니다` | 학습 후 캐릭터나 extra_observation 이 바뀜 | 다시 학습 (`4_train.py`) |
+| `observation 차원이 다릅니다` | 관측 길이가 다른 reward/model을 `--from`으로 연결했거나 snapshot이 없는 구형 run과 현재 파일이 다름 | `--from`은 observation/action 차원이 같을 때만 사용. 다르면 새로 학습하고, 재생은 가능하면 `--run`으로 저장 snapshot 사용 |
 | 창이 안 뜨고 `GLFW`, `OpenGL` 오류 | 그래픽 드라이버/원격 데스크톱 문제 | `--record` 옵션으로 영상 저장 방식 사용 |

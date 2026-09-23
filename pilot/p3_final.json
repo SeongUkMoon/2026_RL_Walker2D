@@ -1,0 +1,110 @@
+{
+  "_ai_assumptions": [
+    "전체 높이 1.5 m를 기준으로 사진 속 마디 길이와 두께를 비례 추정함",
+    "neck와 head의 free 표시는 motor가 없는 수동 hinge 관절로 해석함",
+    "그림의 x2 (_l, _r), same position 지시에 따라 한쪽 다리 체인을 동일 좌표의 좌우 두 체인으로 복제함",
+    "hip과 ankle은 양방향, knee는 한 방향 굽힘으로 해석함",
+    "foot은 free 표시가 없으므로 motor가 있는 ankle 관절로 해석함",
+    "원본에 색상 표시가 없어 좌우 다리 구분용 색상을 임의 선택함"
+  ],
+  "name": "pilot_p3",
+  "segments": [
+    {
+      "name": "torso",
+      "parent": null,
+      "start": [-0.40, 0.96],
+      "end": [0.30, 0.96],
+      "radius": 0.10,
+      "color": "gray"
+    },
+    {
+      "name": "neck",
+      "parent": "torso",
+      "start": [0.30, 1.00],
+      "end": [0.50, 1.34],
+      "radius": 0.045,
+      "joint_range": [-50, 50],
+      "motor": false,
+      "color": "brown"
+    },
+    {
+      "name": "head",
+      "parent": "neck",
+      "start": [0.50, 1.34],
+      "end": [0.78, 1.39],
+      "radius": 0.10,
+      "joint_range": [-35, 35],
+      "motor": false,
+      "color": "brown"
+    },
+    {
+      "name": "upper_leg_l",
+      "parent": "torso",
+      "start": [-0.05, 0.88],
+      "end": [-0.20, 0.56],
+      "radius": 0.055,
+      "joint_range": [-70, 70],
+      "motor": true,
+      "color": "blue"
+    },
+    {
+      "name": "lower_leg_l",
+      "parent": "upper_leg_l",
+      "start": [-0.20, 0.56],
+      "end": [-0.02, 0.14],
+      "radius": 0.045,
+      "joint_range": [-140, 0],
+      "motor": true,
+      "color": "blue"
+    },
+    {
+      "name": "foot_l",
+      "parent": "lower_leg_l",
+      "start": [-0.02, 0.06],
+      "end": [0.28, 0.06],
+      "radius": 0.06,
+      "joint_range": [-45, 45],
+      "motor": true,
+      "friction": 1.9,
+      "color": "blue"
+    },
+    {
+      "name": "upper_leg_r",
+      "parent": "torso",
+      "start": [-0.05, 0.88],
+      "end": [-0.20, 0.56],
+      "radius": 0.055,
+      "joint_range": [-70, 70],
+      "motor": true,
+      "color": "red"
+    },
+    {
+      "name": "lower_leg_r",
+      "parent": "upper_leg_r",
+      "start": [-0.20, 0.56],
+      "end": [-0.02, 0.14],
+      "radius": 0.045,
+      "joint_range": [-140, 0],
+      "motor": true,
+      "color": "red"
+    },
+    {
+      "name": "foot_r",
+      "parent": "lower_leg_r",
+      "start": [-0.02, 0.06],
+      "end": [0.28, 0.06],
+      "radius": 0.06,
+      "joint_range": [-45, 45],
+      "motor": true,
+      "friction": 1.9,
+      "color": "red"
+    }
+  ],
+  "options": {
+    "strength": 1.0,
+    "fall_height_ratio": 0.55,
+    "fall_angle_deg": 60,
+    "frame_skip": 4,
+    "timestep": 0.002
+  }
+}

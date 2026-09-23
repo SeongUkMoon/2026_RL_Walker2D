@@ -1,0 +1,90 @@
+{
+  "_ai_assumptions": [
+    "전체 높이 1.2 m를 기준으로 사진 속 마디 길이와 두께를 비례 추정함",
+    "골반처럼 벌어진 선은 별도 마디가 아니라 torso의 연결부 표현으로 해석함",
+    "양쪽 hip과 ankle은 양방향 회전, 사용자가 확인한 knee만 한 방향 굽힘으로 해석함",
+    "두 발은 사용자 확인에 따라 모두 오른쪽(전진 방향)을 향하게 함",
+    "왼쪽과 오른쪽 다리는 사용자 선택 B에 따라 옆모습의 동일한 x 위치에 겹침",
+    "원본에 색상 표시가 없어 좌우 다리 구분용 색상을 임의 선택함"
+  ],
+  "name": "pilot_p1",
+  "segments": [
+    {
+      "name": "torso",
+      "parent": null,
+      "start": [0.0, 0.82],
+      "end": [0.0, 1.12],
+      "radius": 0.08,
+      "color": "gray"
+    },
+    {
+      "name": "thigh_l",
+      "parent": "torso",
+      "start": [0.0, 0.82],
+      "end": [0.0, 0.50],
+      "radius": 0.055,
+      "joint_range": [-60, 60],
+      "motor": true,
+      "color": "blue"
+    },
+    {
+      "name": "shin_l",
+      "parent": "thigh_l",
+      "start": [0.0, 0.50],
+      "end": [0.0, 0.10],
+      "radius": 0.045,
+      "joint_range": [-140, 0],
+      "motor": true,
+      "color": "blue"
+    },
+    {
+      "name": "foot_l",
+      "parent": "shin_l",
+      "start": [0.0, 0.06],
+      "end": [0.27, 0.06],
+      "radius": 0.06,
+      "joint_range": [-45, 45],
+      "motor": true,
+      "friction": 1.9,
+      "color": "blue"
+    },
+    {
+      "name": "thigh_r",
+      "parent": "torso",
+      "start": [0.0, 0.82],
+      "end": [0.0, 0.50],
+      "radius": 0.055,
+      "joint_range": [-60, 60],
+      "motor": true,
+      "color": "red"
+    },
+    {
+      "name": "shin_r",
+      "parent": "thigh_r",
+      "start": [0.0, 0.50],
+      "end": [0.0, 0.10],
+      "radius": 0.045,
+      "joint_range": [-140, 0],
+      "motor": true,
+      "color": "red"
+    },
+    {
+      "name": "foot_r",
+      "parent": "shin_r",
+      "start": [0.0, 0.06],
+      "end": [0.27, 0.06],
+      "radius": 0.06,
+      "joint_range": [-45, 45],
+      "motor": true,
+      "friction": 1.9,
+      "color": "red"
+    }
+  ],
+  "options": {
+    "strength": 1.0,
+    "fall_height_ratio": 0.55,
+    "fall_angle_deg": 60,
+    "frame_skip": 4,
+    "timestep": 0.002
+  }
+}

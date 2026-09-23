@@ -1,0 +1,53 @@
+{
+  "name": "pilot_p3",
+  "terrain": "flat",
+  "torso_z0": 0.965,
+  "height": 1.495,
+  "total_mass": 65.48,
+  "gear": 276.3,
+  "frame_skip": 4,
+  "segments": [
+    "torso",
+    "neck",
+    "head",
+    "upper_leg_l",
+    "lower_leg_l",
+    "foot_l",
+    "upper_leg_r",
+    "lower_leg_r",
+    "foot_r"
+  ],
+  "joint_names": [
+    "neck_joint",
+    "head_joint",
+    "upper_leg_l_joint",
+    "lower_leg_l_joint",
+    "foot_l_joint",
+    "upper_leg_r_joint",
+    "lower_leg_r_joint",
+    "foot_r_joint"
+  ],
+  "motor_joints": [
+    "upper_leg_l_joint",
+    "lower_leg_l_joint",
+    "foot_l_joint",
+    "upper_leg_r_joint",
+    "lower_leg_r_joint",
+    "foot_r_joint"
+  ],
+  "n_motors": 6,
+  "healthy_z_range": [
+    0.5308,
+    4.86
+  ],
+  "healthy_angle_range": [
+    -1.0471975511965976,
+    1.0471975511965976
+  ],
+  "camera": {
+    "distance": 2.99,
+    "lookat_z": 0.747
+  },
+  "warnings": [],
+  "source": "pilot_p3.json"
+}

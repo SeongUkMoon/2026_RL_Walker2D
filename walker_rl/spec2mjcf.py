@@ -30,11 +30,11 @@ root joint 3개(rootx: slide x, rootz: slide z, rooty: hinge y)를 같은 순서
 from __future__ import annotations
 
 import copy
+import json
 import math
+import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
-
-import mujoco
 
 from .utils import CHARACTERS_DIR, GENERATED_DIR, read_json, write_json
 
@@ -63,6 +63,12 @@ DEFAULT_OPTIONS = {
     "timestep": 0.002,
 }
 
+NAME_RE = re.compile(r"^[a-z][a-z0-9_]*$", re.ASCII)
+SEGMENT_FIELDS = {
+    "name", "parent", "start", "end", "radius", "joint_range", "motor", "friction", "color", "rgba",
+}
+OPTION_FIELDS = set(DEFAULT_OPTIONS)
+
 # terrain 종류별 장애물(bump) 목록: (x 위치, 폭, 높이).  기본 Walker2d(높이 1.25 m) 기준 값이며
 # 캐릭터 크기에 비례해서 scale 됩니다. (이전 실습 프로젝트의 bump terrain 아이디어를 참고)
 TERRAIN_BUMPS = {
@@ -89,25 +95,73 @@ def _strip_comments(obj):
     return obj
 
 
+def _json_object_without_duplicates(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f'중복된 JSON key가 있습니다: "{key}"')
+        result[key] = value
+    return result
+
+
+def _reject_json_constant(value: str):
+    # Python json 모듈은 기본적으로 JSON 표준에 없는 NaN/Infinity도 허용하므로 명시적으로 막습니다.
+    raise ValueError(f"JSON 숫자는 유한해야 합니다: {value}")
+
+
 def load_spec(path: str | Path) -> dict:
     path = Path(path)
     if not path.exists():
         raise SpecError(f"spec 파일을 찾을 수 없습니다: {path}")
     try:
-        raw = read_json(path)
+        with path.open("r", encoding="utf-8-sig") as file:
+            raw = json.load(
+                file,
+                object_pairs_hook=_json_object_without_duplicates,
+                parse_constant=_reject_json_constant,
+            )
     except Exception as e:  # JSON 문법 오류
         raise SpecError(
             f"JSON 문법 오류입니다: {e}\n  (쉼표 누락, 따옴표 짝, 마지막 항목 뒤의 쉼표 등을 확인하세요. "
             f"오류 메시지를 AI 에게 그대로 붙여 넣으면 고쳐 줍니다.)"
         )
+    if not isinstance(raw, dict):
+        raise SpecError('JSON 최상위 값은 객체({...})여야 합니다. "segments" 목록을 가진 객체로 작성하세요.')
     spec = _strip_comments(raw)
     if "name" not in spec:
         spec["name"] = path.stem
     return spec
 
 
-def _is_point(p) -> bool:
-    return isinstance(p, (list, tuple)) and len(p) == 2 and all(isinstance(v, (int, float)) for v in p)
+def _is_finite_number(value) -> bool:
+    """JSON 숫자로 사용 가능한 유한한 실수인지 확인합니다. bool 은 숫자로 취급하지 않습니다."""
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(float(value))
+
+
+def _is_point(point) -> bool:
+    return (
+        isinstance(point, (list, tuple))
+        and len(point) == 2
+        and all(_is_finite_number(value) for value in point)
+    )
+
+
+def _color_error(value) -> str | None:
+    if not isinstance(value, str) or not value.strip():
+        return "문자열이어야 합니다."
+    color = value.strip()
+    if color in COLOR_PRESETS:
+        return None
+    parts = color.split()
+    if len(parts) != 4:
+        return f'알 수 없는 색상 {value!r}입니다. 색상 이름 또는 "r g b a" 숫자 4개를 사용하세요.'
+    try:
+        rgba = [float(part) for part in parts]
+    except ValueError:
+        return f'RGBA 값 {value!r}에 숫자가 아닌 항목이 있습니다.'
+    if not all(math.isfinite(channel) and 0.0 <= channel <= 1.0 for channel in rgba):
+        return "RGBA 네 값은 모두 0~1 사이의 유한한 숫자여야 합니다."
+    return None
 
 
 def _dist_point_segment(p, a, b) -> float:
@@ -125,92 +179,231 @@ def _dist_point_segment(p, a, b) -> float:
 
 
 def validate_spec(spec: dict) -> list[str]:
-    """spec 을 검사합니다. 치명적 오류는 SpecError 로 raise, 가벼운 문제는 경고 문자열 목록으로 반환."""
+    """spec 을 검사합니다. 치명적 오류는 SpecError, 학습 품질 문제는 경고로 반환합니다."""
+    if not isinstance(spec, dict):
+        raise SpecError('spec 은 "segments" 목록을 가진 객체(dict)여야 합니다.')
+    # 파일을 거치지 않고 dict 를 직접 넘겨도 설명용/AI 메모 필드의 동작이 같습니다.
+    spec = _strip_comments(spec)
+
     errors: list[str] = []
     warnings: list[str] = []
 
+    unknown_top = sorted(str(key) for key in spec if key not in {"name", "segments", "options"})
+    if unknown_top:
+        errors.append(f"최상위에 알 수 없는 필드가 있습니다: {', '.join(unknown_top)}")
+
+    model_name = spec.get("name", "custom2d")
+    if not isinstance(model_name, str) or not NAME_RE.fullmatch(model_name):
+        errors.append('name 은 영문 소문자로 시작하고 영문 소문자/숫자/밑줄(_)만 사용해야 합니다.')
+
+    options = spec.get("options", {})
+    if not isinstance(options, dict):
+        errors.append('"options" 는 객체({...})여야 합니다.')
+        options = {}
+    else:
+        unknown_options = sorted(str(key) for key in options if key not in OPTION_FIELDS)
+        if unknown_options:
+            errors.append(f"options 에 알 수 없는 필드가 있습니다: {', '.join(unknown_options)}")
+
+        strength = options.get("strength", DEFAULT_OPTIONS["strength"])
+        if not _is_finite_number(strength) or not 0.0 < float(strength) <= 10.0:
+            errors.append(f"options.strength 는 0보다 크고 10 이하인 유한한 숫자여야 합니다. 현재 {strength!r}")
+        fall_ratio = options.get("fall_height_ratio", DEFAULT_OPTIONS["fall_height_ratio"])
+        if not _is_finite_number(fall_ratio) or not 0.0 < float(fall_ratio) <= 1.0:
+            errors.append(f"options.fall_height_ratio 는 0보다 크고 1 이하인 유한한 숫자여야 합니다. 현재 {fall_ratio!r}")
+        fall_angle = options.get("fall_angle_deg", DEFAULT_OPTIONS["fall_angle_deg"])
+        if not _is_finite_number(fall_angle) or not 0.0 < float(fall_angle) <= 180.0:
+            errors.append(f"options.fall_angle_deg 는 0보다 크고 180 이하인 유한한 숫자여야 합니다. 현재 {fall_angle!r}")
+        frame_skip = options.get("frame_skip", DEFAULT_OPTIONS["frame_skip"])
+        if not isinstance(frame_skip, int) or isinstance(frame_skip, bool) or not 1 <= frame_skip <= 20:
+            errors.append(f"options.frame_skip 은 1~20 사이의 정수여야 합니다. 현재 {frame_skip!r}")
+        timestep = options.get("timestep", DEFAULT_OPTIONS["timestep"])
+        if not _is_finite_number(timestep) or not 0.0001 <= float(timestep) <= 0.02:
+            errors.append(f"options.timestep 은 0.0001~0.02 사이의 유한한 숫자여야 합니다. 현재 {timestep!r}")
+
     segs = spec.get("segments")
-    if not isinstance(segs, list) or len(segs) == 0:
-        raise SpecError('"segments" 목록이 비어 있습니다.')
+    if not isinstance(segs, list) or not segs:
+        errors.append('"segments" 는 하나 이상의 segment 객체를 담은 목록이어야 합니다.')
+        raise SpecError("spec 오류:\n  - " + "\n  - ".join(errors))
+    if len(segs) > 32:
+        errors.append(f"segment 가 {len(segs)}개입니다. 안전한 실습을 위해 32개 이하로 줄이세요.")
 
-    names = [s.get("name") for s in segs]
-    for i, s in enumerate(segs):
-        tag = f'segment #{i + 1} ({s.get("name", "이름없음")})'
-        if not isinstance(s.get("name"), str) or not s["name"].strip():
-            errors.append(f"{tag}: name 이 없습니다.")
-        elif not all(c.isalnum() or c == "_" for c in s["name"]):
-            errors.append(f"{tag}: name 은 영문/숫자/밑줄(_)만 사용하세요.")
-        if names.count(s.get("name")) > 1:
-            errors.append(f"{tag}: 같은 name 이 여러 번 나옵니다.")
-        if not _is_point(s.get("start")) or not _is_point(s.get("end")):
-            errors.append(f"{tag}: start / end 는 [x, z] 두 숫자여야 합니다.")
+    valid_segs: list[dict] = []
+    for i, segment in enumerate(segs):
+        if not isinstance(segment, dict):
+            errors.append(f"segment #{i + 1}: 객체({{...}})여야 합니다. 현재 {type(segment).__name__}")
             continue
-        length = math.dist(s["start"], s["end"])
-        if length < 0.02:
-            errors.append(f"{tag}: 길이가 너무 짧습니다 ({length:.3f} m). start 와 end 를 다르게 주세요.")
-        r = s.get("radius", 0.05)
-        if not isinstance(r, (int, float)) or r <= 0.005 or r > 0.6:
-            errors.append(f"{tag}: radius 는 0.01 ~ 0.6 (m) 사이여야 합니다. 현재 {r}")
-        jr = s.get("joint_range", [-90, 90])
-        if s.get("parent") is not None:
-            if not (isinstance(jr, (list, tuple)) and len(jr) == 2 and jr[0] < jr[1]):
-                errors.append(f"{tag}: joint_range 는 [최소, 최대] (deg) 이고 최소 < 최대 여야 합니다. 현재 {jr}")
-            elif jr[0] < -180 or jr[1] > 180:
-                warnings.append(f"{tag}: joint_range 가 ±180 deg 를 넘습니다. 보통 ±150 이내로 둡니다.")
+        valid_segs.append(segment)
+        raw_name = segment.get("name")
+        label = raw_name if isinstance(raw_name, str) and raw_name else "이름없음"
+        tag = f"segment #{i + 1} ({label})"
 
-    roots = [s for s in segs if s.get("parent") is None]
+        unknown_fields = sorted(str(key) for key in segment if key not in SEGMENT_FIELDS)
+        if unknown_fields:
+            errors.append(f"{tag}: 알 수 없는 필드가 있습니다: {', '.join(unknown_fields)}")
+        if not isinstance(raw_name, str) or not NAME_RE.fullmatch(raw_name):
+            errors.append(f"{tag}: name 은 영문 소문자로 시작하고 영문 소문자/숫자/밑줄(_)만 사용하세요.")
+        if "parent" not in segment:
+            errors.append(f"{tag}: parent 필드가 없습니다. root 만 null, 나머지는 부모 name 을 적으세요.")
+        else:
+            parent = segment["parent"]
+            if parent is not None and (not isinstance(parent, str) or not NAME_RE.fullmatch(parent)):
+                errors.append(f"{tag}: parent 는 null 또는 유효한 segment name 문자열이어야 합니다. 현재 {parent!r}")
+
+        start_ok = _is_point(segment.get("start"))
+        end_ok = _is_point(segment.get("end"))
+        if not start_ok:
+            errors.append(f"{tag}: start 는 유한한 숫자 두 개의 [x, z] 목록이어야 합니다.")
+        if not end_ok:
+            errors.append(f"{tag}: end 는 유한한 숫자 두 개의 [x, z] 목록이어야 합니다.")
+        if start_ok and end_ok:
+            length = math.dist(segment["start"], segment["end"])
+            if length < 0.02:
+                errors.append(f"{tag}: 길이가 너무 짧습니다 ({length:.3f} m). start 와 end 를 다르게 주세요.")
+
+        radius = segment.get("radius", 0.05)
+        if not _is_finite_number(radius) or not 0.005 <= float(radius) <= 0.6:
+            errors.append(f"{tag}: radius 는 0.005~0.6 m 사이의 유한한 숫자여야 합니다. 현재 {radius!r}")
+
+        friction = segment.get("friction", 0.9)
+        if not _is_finite_number(friction) or not 0.01 <= float(friction) <= 10.0:
+            errors.append(f"{tag}: friction 은 0.01~10 사이의 유한한 숫자여야 합니다. 현재 {friction!r}")
+
+        if "motor" in segment and not isinstance(segment["motor"], bool):
+            errors.append(f"{tag}: motor 는 문자열이 아닌 JSON boolean true 또는 false 여야 합니다. 현재 {segment['motor']!r}")
+
+        for color_field in ("color", "rgba"):
+            if color_field in segment:
+                color_problem = _color_error(segment[color_field])
+                if color_problem:
+                    errors.append(f"{tag}: {color_field} {color_problem}")
+        if "color" in segment and "rgba" in segment:
+            errors.append(f"{tag}: color 와 rgba 중 하나만 사용하세요.")
+
+        if segment.get("parent") is not None:
+            joint_range = segment.get("joint_range", [-90, 90])
+            range_ok = (
+                isinstance(joint_range, (list, tuple))
+                and len(joint_range) == 2
+                and all(_is_finite_number(value) for value in joint_range)
+            )
+            if not range_ok:
+                errors.append(f"{tag}: joint_range 는 유한한 숫자 두 개의 [최소, 최대] 목록이어야 합니다. 현재 {joint_range!r}")
+            else:
+                low, high = float(joint_range[0]), float(joint_range[1])
+                if not low < high:
+                    errors.append(f"{tag}: joint_range 는 최소 < 최대여야 합니다. 현재 {joint_range!r}")
+                if low < -180.0 or high > 180.0:
+                    errors.append(f"{tag}: joint_range 는 -180~180 deg 안에 있어야 합니다. 현재 {joint_range!r}")
+                if not low <= 0.0 <= high:
+                    errors.append(
+                        f"{tag}: 초기 관절 각도 0 deg 가 joint_range {joint_range!r} 안에 있어야 합니다. "
+                        "한쪽 관절은 [-150, 0] 또는 [0, 150]처럼 0을 끝값으로 포함하세요."
+                    )
+
+    valid_names = [segment.get("name") for segment in valid_segs if isinstance(segment.get("name"), str)]
+    duplicates = sorted({name for name in valid_names if valid_names.count(name) > 1})
+    for name in duplicates:
+        errors.append(f'segment name "{name}" 이(가) 여러 번 나옵니다. name 은 고유해야 합니다.')
+
+    roots = [segment for segment in valid_segs if "parent" in segment and segment.get("parent") is None]
     if len(roots) != 1:
-        errors.append(f'parent 가 null 인 segment(몸통, root)가 정확히 1개 있어야 합니다. 현재 {len(roots)}개')
+        errors.append(f"parent 가 null 인 segment(몸통, root)가 정확히 1개 있어야 합니다. 현재 {len(roots)}개")
 
-    by_name = {s.get("name"): s for s in segs}
-    for s in segs:
-        p = s.get("parent")
-        if p is not None and p not in by_name:
-            errors.append(f'segment "{s.get("name")}": parent "{p}" 라는 segment 가 없습니다.')
+    by_name = {
+        segment["name"]: segment
+        for segment in valid_segs
+        if isinstance(segment.get("name"), str) and segment["name"] not in duplicates
+    }
+    for segment in valid_segs:
+        parent = segment.get("parent")
+        if isinstance(parent, str) and parent not in by_name:
+            errors.append(f'segment "{segment.get("name", "이름없음")}": parent "{parent}" 라는 segment 가 없습니다.')
+        if isinstance(parent, str) and parent == segment.get("name"):
+            errors.append(f'segment "{parent}" 는 자기 자신을 parent 로 지정할 수 없습니다.')
 
-    # 순환 참조 검사 (a 의 부모가 b, b 의 부모가 a 같은 경우)
-    if not errors:
-        for s in segs:
-            seen = set()
-            cur = s
-            while cur is not None and cur.get("parent") is not None:
-                if cur["name"] in seen:
-                    errors.append(f'segment "{s["name"]}" 의 parent 연결이 순환합니다.')
+    # 부모 필드가 모두 안전할 때 순환 참조를 별도로 검사합니다.
+    graph_is_safe = (
+        len(by_name) == len(valid_segs)
+        and len(roots) == 1
+        and all(
+            segment.get("parent") is None
+            or (isinstance(segment.get("parent"), str) and segment.get("parent") in by_name)
+            for segment in valid_segs
+        )
+    )
+    if graph_is_safe:
+        reported_cycles: set[str] = set()
+        for segment in valid_segs:
+            seen: set[str] = set()
+            current = segment
+            while current.get("parent") is not None:
+                name = current["name"]
+                if name in seen:
+                    if segment["name"] not in reported_cycles:
+                        errors.append(f'segment "{segment["name"]}" 의 parent 연결이 순환합니다.')
+                        reported_cycles.add(segment["name"])
                     break
-                seen.add(cur["name"])
-                cur = by_name[cur["parent"]]
+                seen.add(name)
+                current = by_name[current["parent"]]
 
     if errors:
         raise SpecError("spec 오류:\n  - " + "\n  - ".join(errors))
 
-    # ---- 경고 (실행은 되지만 확인이 필요한 것들) ----
-    motors = [s for s in segs if s.get("parent") is not None and s.get("motor", True)]
-    if len(motors) == 0:
+    # ---- 경고 (실행은 되지만 학습 전에 확인이 필요한 것들) ----
+    if len(segs) < 4 or len(segs) > 9:
+        warnings.append(f"segment 가 {len(segs)}개입니다. 첫 실습은 4~9개가 다루기 쉽습니다.")
+
+    motors = [segment for segment in valid_segs if segment.get("parent") is not None and segment.get("motor", True)]
+    if not motors:
         raise SpecError("모터(motor: true)가 달린 joint 가 하나도 없습니다. 강화학습으로 움직일 수 없습니다.")
-    if len(motors) > 12:
-        warnings.append(f"모터가 {len(motors)}개입니다. 8개 이하가 학습이 빠릅니다.")
+    if len(motors) < 4:
+        warnings.append(f"모터가 {len(motors)}개뿐입니다. 다양한 움직임을 학습하려면 보통 4~8개를 권장합니다.")
+    elif len(motors) > 8:
+        warnings.append(f"모터가 {len(motors)}개입니다. 첫 실습은 4~8개가 학습과 관찰에 유리합니다.")
 
-    zs = [v for s in segs for v in (s["start"][1] - s.get("radius", 0.05), s["end"][1] + s.get("radius", 0.05))]
-    height = max(zs) - min(zs)
+    bottoms = {
+        segment["name"]: min(float(segment["start"][1]), float(segment["end"][1])) - float(segment.get("radius", 0.05))
+        for segment in valid_segs
+    }
+    tops = {
+        segment["name"]: max(float(segment["start"][1]), float(segment["end"][1])) + float(segment.get("radius", 0.05))
+        for segment in valid_segs
+    }
+    lowest = min(bottoms.values())
+    height = max(tops.values()) - lowest
     if height < 0.2:
-        warnings.append(f"캐릭터 전체 높이가 {height:.2f} m 로 매우 작습니다. 0.5 ~ 2 m 정도를 추천합니다.")
+        warnings.append(f"캐릭터 전체 높이가 {height:.2f} m 로 매우 작습니다. 0.5~2 m 정도를 추천합니다.")
     if height > 4.0:
-        warnings.append(f"캐릭터 전체 높이가 {height:.2f} m 로 매우 큽니다. 0.5 ~ 2 m 정도를 추천합니다.")
+        warnings.append(f"캐릭터 전체 높이가 {height:.2f} m 로 매우 큽니다. 0.5~2 m 정도를 추천합니다.")
 
-    for s in segs:
-        p = s.get("parent")
-        if p is None:
+    for segment in valid_segs:
+        parent = segment.get("parent")
+        if parent is None:
             continue
-        par = by_name[p]
-        gap = _dist_point_segment(s["start"], par["start"], par["end"])
-        if gap > par.get("radius", 0.05) + 0.05:
+        parent_segment = by_name[parent]
+        gap = _dist_point_segment(segment["start"], parent_segment["start"], parent_segment["end"])
+        if gap > float(parent_segment.get("radius", 0.05)) + 0.05:
             warnings.append(
-                f'segment "{s["name"]}" 의 start 점이 부모 "{p}" 에서 {gap:.2f} m 떨어져 있습니다. '
-                "(허공에 매달린 것처럼 붙습니다. 의도한 게 아니면 start 를 부모 위의 점으로 옮기세요.)"
+                f'segment "{segment["name"]}" 의 start 점이 부모 "{parent}"에서 {gap:.2f} m 떨어져 있습니다. '
+                "허공에 매달린 것처럼 붙습니다. 의도한 게 아니면 start 를 부모 위의 점으로 옮기세요."
             )
-    feet = [s for s in segs if s.get("parent") is not None and s.get("friction", 0.9) >= 1.2]
+
+    feet = [
+        segment for segment in valid_segs
+        if segment.get("parent") is not None and float(segment.get("friction", 0.9)) >= 1.2
+    ]
     if not feet:
-        warnings.append("friction 이 1.2 이상인 segment(발)가 없습니다. 바닥에 닿는 마디에 friction 1.9 를 주면 잘 미끄러지지 않습니다.")
+        warnings.append("friction 이 1.2 이상인 발 후보가 없습니다. 바닥에 닿는 마디에 friction 1.9 를 주세요.")
+    else:
+        foot_tolerance = max(0.05, min(0.20, 0.10 * height))
+        for foot in feet:
+            above_ground = bottoms[foot["name"]] - lowest
+            if above_ground > foot_tolerance:
+                warnings.append(
+                    f'발 후보 "{foot["name"]}"가 캐릭터의 최저점보다 {above_ground:.2f} m 높습니다. '
+                    "초기 자세에서 실제로 바닥에 닿는지 확인하세요."
+                )
     return warnings
 
 
@@ -230,6 +423,8 @@ def spec_to_mjcf(spec_in: dict, terrain: str = "flat") -> tuple[str, dict]:
     """spec dict -> (xml 문자열, meta dict)."""
     spec = copy.deepcopy(spec_in)
     warnings = validate_spec(spec)
+    if terrain not in TERRAIN_BUMPS:
+        raise SpecError(f'terrain 은 {list(TERRAIN_BUMPS)} 중 하나여야 합니다: "{terrain}"')
     opts = {**DEFAULT_OPTIONS, **spec.get("options", {})}
     segs = spec["segments"]
     by_name = {s["name"]: s for s in segs}
@@ -323,7 +518,21 @@ def spec_to_mjcf(spec_in: dict, terrain: str = "flat") -> tuple[str, dict]:
     _add_bumps(wb, terrain, scale)
 
     # 5) 모터 힘: 총 질량에 비례 (작은 캐릭터는 약하게, 큰 캐릭터는 강하게)
-    tmp_model = mujoco.MjModel.from_xml_string(ET.tostring(mj, encoding="unicode"))
+    # JSON 자체의 검증은 MuJoCo 없이도 쓸 수 있어야 하므로 무거운 의존성은 빌드 시점에만 불러옵니다.
+    try:
+        import mujoco
+    except ImportError as exc:
+        raise SpecError(
+            "MuJoCo 를 불러올 수 없습니다. 먼저 setup.bat 을 실행해 실습 환경을 설치하세요. "
+            f"({exc})"
+        ) from exc
+    try:
+        tmp_model = mujoco.MjModel.from_xml_string(ET.tostring(mj, encoding="unicode"))
+    except Exception as exc:
+        raise SpecError(
+            "검증을 통과했지만 MuJoCo 모델을 만들지 못했습니다. 아래 오류와 JSON 을 함께 확인하세요:\n"
+            f"  {type(exc).__name__}: {exc}"
+        ) from exc
     total_mass = float(tmp_model.body_mass.sum())
     gear = WALKER_GEAR_REF * (total_mass / WALKER_MASS_REF) * float(opts["strength"])
     gear = max(5.0, gear)
@@ -415,9 +624,9 @@ def resolve_character(name_or_path: str, terrain: str = "flat") -> tuple[Path, d
     json 만 있고 xml 이 없으면 자동으로 빌드합니다.
     """
     p = Path(name_or_path)
-    if p.suffix == ".json" and p.exists():
+    if p.suffix.lower() == ".json" and p.exists():
         spec_path = p
-    elif p.suffix == ".xml" and p.exists():
+    elif p.suffix.lower() == ".xml" and p.exists():
         # 직접 만든 XML: meta 파일이 옆에 있어야 함
         meta_path = p.parent / (p.stem + ".meta.json")
         if not meta_path.exists():

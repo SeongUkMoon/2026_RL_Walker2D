@@ -15,18 +15,32 @@ results = []
 
 
 def check(name, fn, hint=""):
+    """검사 하나를 실행하고 결과를 기록합니다. 실패는 다음 검사로 전파하지 않습니다."""
     try:
         detail = fn()
         print(f"  [OK]   {name}" + (f"  ({detail})" if detail else ""))
         results.append(True)
+        return True
     except Exception as e:
         print(f"  [실패] {name}: {type(e).__name__}: {e}")
         if hint:
             print(f"         힌트: {hint}")
+        if isinstance(e, ModuleNotFoundError):
+            missing = getattr(e, "name", None) or "필요한 패키지"
+            print(f"         진단: Python 패키지 '{missing}'을(를) 불러오지 못했습니다.")
+        elif isinstance(e, FileNotFoundError):
+            print("         진단: 필요한 파일 또는 실행 파일이 없거나 경로가 바뀌었습니다.")
+        elif isinstance(e, PermissionError):
+            print("         진단: 파일/폴더 접근 권한이 없습니다. 동기화·보안 프로그램도 확인하세요.")
+        elif isinstance(e, OSError):
+            print("         진단: 운영체제·그래픽 드라이버·실행 파일 관련 오류일 수 있습니다.")
         results.append(False)
+        return False
 
 
-def main():
+def main() -> int:
+    # 같은 Python 프로세스에서 main()을 다시 호출해도 이전 결과가 섞이지 않게 합니다.
+    results.clear()
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     p.add_argument("--no-window", action="store_true", help="화면 창 점검 생략")
     args = p.parse_args()
@@ -149,7 +163,8 @@ def main():
         print(f" {results.count(False)}개 항목 실패. 위의 [실패] 줄과 힌트를 확인하세요.")
         print(" 이 출력을 그대로 복사해서 AI 에게 '이 오류를 해결해 달라'고 물어봐도 좋습니다.")
     print("=" * 60)
+    return 0 if all(results) else 1
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
