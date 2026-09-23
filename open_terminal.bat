@@ -1,21 +1,21 @@
 @echo off
-chcp 65001 >nul
+REM Saved in CP949 (Korean ANSI) encoding on purpose - see setup.bat.
 cd /d "%~dp0"
 if not exist ".venv\Scripts\activate.bat" (
-    echo ë¨¼ì € setup.bat ì„ ì‹¤í–‰í•´ì„œ ì„¤ì¹˜ë¥¼ ëë‚´ ì£¼ì„¸ìš”.
+    echo ¸ÕÀú setup.bat À» ½ÇÇàÇØ¼­ ¼³Ä¡¸¦ ³¡³» ÁÖ¼¼¿ä.
     pause
     exit /b 1
 )
 echo ============================================================
-echo  Walker2D ì‹¤ìŠµ í„°ë¯¸ë„  (ê°€ìƒí™˜ê²½ .venv í™œì„±í™”ë¨)
+echo  Walker2D ½Ç½À ÅÍ¹Ì³Î  - °¡»óÈ¯°æ .venv È°¼ºÈ­µÊ
 echo ------------------------------------------------------------
-echo   python 0_check.py                 ì„¤ì¹˜ ì ê²€
-echo   python 1_run_walker.py            ê¸°ë³¸ Walker2D ì›€ì§ì—¬ ë³´ê¸°
-echo   python 2_build_character.py       ë‚´ ìºë¦­í„° ë§Œë“¤ê¸° (characters/my_character.json)
-echo   python 3_play.py my_character     ë‚´ ìºë¦­í„° ì›€ì§ì—¬ ë³´ê¸°
-echo   python 4_train.py --character my_character --minutes 10     í•™ìŠµ
-echo   python 5_watch.py --character my_character                  í•™ìŠµ ê²°ê³¼ ë³´ê¸°
-echo   python 6_plot.py --character my_character                   í•™ìŠµ ê³¡ì„ 
-echo   (ê° ëª…ë ¹ ë’¤ì— --help ë¥¼ ë¶™ì´ë©´ ì˜µì…˜ ì„¤ëª…ì´ ë‚˜ì˜µë‹ˆë‹¤)
+echo   python 0_check.py                 ¼³Ä¡ Á¡°Ë
+echo   python 1_run_walker.py            ±âº» Walker2D ¿òÁ÷¿© º¸±â
+echo   python 2_build_character.py       ³» Ä³¸¯ÅÍ ¸¸µé±â - characters/my_character.json
+echo   python 3_play.py my_character     ³» Ä³¸¯ÅÍ ¿òÁ÷¿© º¸±â
+echo   python 4_train.py --character my_character --minutes 10     ÇĞ½À
+echo   python 5_watch.py --character my_character                  ÇĞ½À °á°ú º¸±â
+echo   python 6_plot.py --character my_character                   ÇĞ½À °î¼±
+echo   °¢ ¸í·É µÚ¿¡ --help ¸¦ ºÙÀÌ¸é ¿É¼Ç ¼³¸íÀÌ ³ª¿É´Ï´Ù
 echo ============================================================
 cmd /k ".venv\Scripts\activate.bat"

@@ -144,6 +144,7 @@ python 4_train.py --character dog --from pretrained/dog --minutes 4        (my_r
 | 증상 | 해결 |
 |---|---|
 | `python` 을 찾을 수 없다 / 'python'은 내부 또는 외부 명령이 아닙니다 | Python 설치 시 "Add to PATH" 를 안 한 것. 재설치(Modify → Add to PATH) 후 setup.bat 다시 실행 |
+| setup.bat 의 한글이 깨져 보인다 / `'defined'은(는) 내부 또는 외부 명령...` 같은 오류가 여러 줄 나온다 | bat 파일은 한국어 Windows 콘솔 인코딩(CP949)으로 저장되어 있습니다. 메모장 등으로 열어 **UTF-8 로 다시 저장하면 이 오류가 납니다** — GitHub 에서 받은 원본을 그대로 쓰세요. 시스템 로캘을 'Beta: UTF-8' 로 바꿔 둔 PC 에서는 글자만 깨지고 동작은 정상입니다 |
 | setup.bat 에서 패키지 설치 실패 | 인터넷/회사 프록시 문제. 핫스팟으로 다시 시도. 그래도 안 되면 `.venv\Scripts\python -m pip install -r requirements.txt` 를 터미널에서 직접 실행해 오류 확인 |
 | XML 을 열 수 없다는 오류 (경로 관련) | 폴더 경로에 한글/공백이 있는 경우. `C:\Walker2D` 로 옮기기 |
 | 창이 안 뜬다 / OpenGL 오류 | 그래픽 드라이버 업데이트. 안 되면 `--record` 로 영상 저장 방식으로 진행 (실습 가능) |

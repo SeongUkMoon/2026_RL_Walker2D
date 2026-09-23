@@ -1,62 +1,69 @@
 @echo off
-chcp 65001 >nul
+REM ============================================================
+REM  Walker2D setup for Korean Windows.
+REM  This file is saved in CP949 (Korean ANSI) encoding on purpose:
+REM  cmd.exe cannot parse UTF-8 batch files reliably.
+REM  If the Korean text looks garbled on your console, the commands
+REM  still work - only the messages are affected.
+REM ============================================================
 setlocal
 cd /d "%~dp0"
 echo ============================================================
-echo  Walker2D ì‹¤ìŠµ í™˜ê²½ ì„¤ì¹˜  (Python 3.11 + .venv ê°€ìƒí™˜ê²½)
-echo  ì¸í„°ë„·ì´ í•„ìš”í•˜ë©° 5~10ë¶„ ì •ë„ ê±¸ë¦½ë‹ˆë‹¤. ì°½ì„ ë‹«ì§€ ë§ê³  ê¸°ë‹¤ë ¤ ì£¼ì„¸ìš”.
+echo  Walker2D ½Ç½À È¯°æ ¼³Ä¡  - Python 3.11 + .venv °¡»óÈ¯°æ
+echo  ÀÎÅÍ³ÝÀÌ ÇÊ¿äÇÏ¸ç 5~10ºÐ Á¤µµ °É¸³´Ï´Ù. Ã¢À» ´ÝÁö ¸»°í ±â´Ù·Á ÁÖ¼¼¿ä.
 echo ============================================================
 echo.
 
-REM ---------- 1) Python 3.11 ì°¾ê¸° ----------
+REM ---------- 1) Python 3.11 Ã£±â ----------
 set "PY="
 py -3.11 -c "import sys" >nul 2>&1 && set "PY=py -3.11"
 if not defined PY (
     python -c "import sys; raise SystemExit(0 if sys.version_info[:2]==(3,11) else 1)" >nul 2>&1 && set "PY=python"
 )
 if not defined PY (
-    echo [ì‹¤íŒ¨] Python 3.11 ì„ ì°¾ì„ ìˆ˜ ì—†ìŠµë‹ˆë‹¤.
+    echo [½ÇÆÐ] Python 3.11 À» Ã£À» ¼ö ¾ø½À´Ï´Ù.   [ERROR] Python 3.11 not found.
     echo.
-    echo   1. https://www.python.org/downloads/release/python-3119/ ì—ì„œ
-    echo      "Windows installer (64-bit)" ë¥¼ ë‚´ë ¤ë°›ì•„ ì„¤ì¹˜í•˜ì„¸ìš”.
-    echo   2. ì„¤ì¹˜ ì²« í™”ë©´ì—ì„œ "Add python.exe to PATH" ë¥¼ ë°˜ë“œì‹œ ì²´í¬í•˜ì„¸ìš”.
-    echo   3. ì„¤ì¹˜ê°€ ëë‚˜ë©´ ì´ setup.bat ì„ ë‹¤ì‹œ ì‹¤í–‰í•˜ì„¸ìš”.
+    echo   1. ¾Æ·¡ ÁÖ¼Ò¿¡¼­ "Windows installer 64-bit" ¸¦ ³»·Á¹Þ¾Æ ¼³Ä¡ÇÏ¼¼¿ä.
+    echo      https://www.python.org/downloads/release/python-3119/
+    echo   2. ¼³Ä¡ Ã¹ È­¸é¿¡¼­ "Add python.exe to PATH" ¸¦ ¹Ýµå½Ã Ã¼Å©ÇÏ¼¼¿ä.
+    echo   3. ´Ù¸¥ ¹öÀüÀÇ Python ÀÌ ÀÖ¾îµµ 3.11 À» Ãß°¡·Î ¼³Ä¡ÇØ¾ß ÇÕ´Ï´Ù.
+    echo   4. ¼³Ä¡°¡ ³¡³ª¸é ÀÌ setup.bat À» ´Ù½Ã ½ÇÇàÇÏ¼¼¿ä.
     echo.
     pause
     exit /b 1
 )
-echo [1/4] Python 3.11 í™•ì¸: %PY%
+echo [1/4] Python 3.11 È®ÀÎ: %PY%
 
-REM ---------- 2) ê°€ìƒí™˜ê²½ ----------
+REM ---------- 2) °¡»óÈ¯°æ ----------
 if exist ".venv\Scripts\python.exe" (
-    echo [2/4] ê°€ìƒí™˜ê²½ .venv ê°€ ì´ë¯¸ ìžˆìŠµë‹ˆë‹¤. ê·¸ëŒ€ë¡œ ì‚¬ìš©í•©ë‹ˆë‹¤.
+    echo [2/4] °¡»óÈ¯°æ .venv °¡ ÀÌ¹Ì ÀÖ½À´Ï´Ù. ±×´ë·Î »ç¿ëÇÕ´Ï´Ù.
 ) else (
-    echo [2/4] ê°€ìƒí™˜ê²½ .venv ë§Œë“œëŠ” ì¤‘...
+    echo [2/4] °¡»óÈ¯°æ .venv ¸¸µå´Â Áß...
     %PY% -m venv .venv
     if errorlevel 1 (
-        echo [ì‹¤íŒ¨] ê°€ìƒí™˜ê²½ì„ ë§Œë“¤ ìˆ˜ ì—†ìŠµë‹ˆë‹¤. í´ë” ê²½ë¡œì— í•œê¸€ì´ ì—†ëŠ”ì§€ í™•ì¸í•˜ê³  ë‹¤ì‹œ ì‹¤í–‰í•˜ì„¸ìš”.
+        echo [½ÇÆÐ] °¡»óÈ¯°æÀ» ¸¸µé ¼ö ¾ø½À´Ï´Ù. Æú´õ °æ·Î¿¡ ÇÑ±ÛÀÌ³ª °ø¹éÀÌ ¾ø´ÂÁö È®ÀÎÇÏ°í ´Ù½Ã ½ÇÇàÇÏ¼¼¿ä.
         pause
         exit /b 1
     )
 )
 
-REM ---------- 3) íŒ¨í‚¤ì§€ ì„¤ì¹˜ ----------
-echo [3/4] íŒ¨í‚¤ì§€ ì„¤ì¹˜ ì¤‘ (mujoco, gymnasium, stable-baselines3, torch ...)  -- ì‹œê°„ì´ ê±¸ë¦½ë‹ˆë‹¤
+REM ---------- 3) ÆÐÅ°Áö ¼³Ä¡ ----------
+echo [3/4] ÆÐÅ°Áö ¼³Ä¡ Áß: mujoco, gymnasium, stable-baselines3, torch ...   ½Ã°£ÀÌ °É¸³´Ï´Ù
 ".venv\Scripts\python.exe" -m pip install --upgrade pip >nul 2>&1
 ".venv\Scripts\python.exe" -m pip install -r requirements.txt
 if errorlevel 1 (
     echo.
-    echo [ì‹¤íŒ¨] íŒ¨í‚¤ì§€ ì„¤ì¹˜ ì¤‘ ì˜¤ë¥˜ê°€ ë‚¬ìŠµë‹ˆë‹¤. ì¸í„°ë„· ì—°ê²°ì„ í™•ì¸í•œ ë’¤ setup.bat ì„ ë‹¤ì‹œ ì‹¤í–‰í•˜ì„¸ìš”.
-    echo        íšŒì‚¬ ë„¤íŠ¸ì›Œí¬(í”„ë¡ì‹œ/ë°©í™”ë²½)ë¼ë©´ ê°œì¸ í•«ìŠ¤íŒŸìœ¼ë¡œ ë‹¤ì‹œ ì‹œë„í•´ ë³´ì„¸ìš”.
+    echo [½ÇÆÐ] ÆÐÅ°Áö ¼³Ä¡ Áß ¿À·ù°¡ ³µ½À´Ï´Ù. ÀÎÅÍ³Ý ¿¬°áÀ» È®ÀÎÇÑ µÚ setup.bat À» ´Ù½Ã ½ÇÇàÇÏ¼¼¿ä.
+    echo        È¸»ç ³×Æ®¿öÅ© - ÇÁ·Ï½Ã³ª ¹æÈ­º® - ¶ó¸é °³ÀÎ ÇÖ½ºÆÌÀ¸·Î ´Ù½Ã ½ÃµµÇØ º¸¼¼¿ä.
     pause
     exit /b 1
 )
 
-REM ---------- 4) ì ê²€ ----------
+REM ---------- 4) Á¡°Ë ----------
 echo.
-echo [4/4] ì„¤ì¹˜ ì ê²€ ì‹¤í–‰ (ìž ì‹œ í›„ 3ì´ˆ ë™ì•ˆ ì‹œë®¬ë ˆì´ì…˜ ì°½ì´ ë–´ë‹¤ê°€ ë‹«íž™ë‹ˆë‹¤)
+echo [4/4] ¼³Ä¡ Á¡°Ë ½ÇÇà - Àá½Ã ÈÄ 3ÃÊ µ¿¾È ½Ã¹Ä·¹ÀÌ¼Ç Ã¢ÀÌ ¶¹´Ù°¡ ´ÝÈü´Ï´Ù
 ".venv\Scripts\python.exe" 0_check.py
 echo.
-echo ìœ„ì— "ëª¨ë“  ì ê²€ í†µê³¼" ê°€ ë³´ì´ë©´ ì¤€ë¹„ ì™„ë£Œìž…ë‹ˆë‹¤.
-echo ì‹¤ìŠµì„ ì‹œìž‘í•  ë•ŒëŠ” open_terminal.bat ì„ ë”ë¸”í´ë¦­í•˜ì„¸ìš”.
+echo À§¿¡ "¸ðµç Á¡°Ë Åë°ú" °¡ º¸ÀÌ¸é ÁØºñ ¿Ï·áÀÔ´Ï´Ù.
+echo ½Ç½ÀÀ» ½ÃÀÛÇÒ ¶§´Â open_terminal.bat À» ´õºíÅ¬¸¯ÇÏ¼¼¿ä.
 pause
