@@ -10,6 +10,10 @@
 
 > 사진 속 그림을 그대로 3D 모델로 만드는 과정은 아닙니다. 몸통과 팔다리의 마디, 관절, 연결 관계를 읽어 2D 관절 구조로 바꿉니다. 옆모습 구조도에 영문 라벨을 붙여 그리면 결과가 가장 안정적입니다.
 
+![미리 학습된 Walker, Biped, Dog, Ostrich의 동작 장면](docs/images/pretrained_overview.png)
+
+예시 영상: [Walker](videos/demo/walker_trained.mp4) · [Biped](videos/demo/biped_trained.mp4) · [Dog](videos/demo/dog_trained.mp4) · [Ostrich](videos/demo/ostrich_trained.mp4)
+
 ---
 
 ## 1. 수업 전 준비
@@ -52,6 +56,15 @@ python 0_check.py
 - 관절 위치는 동그라미로, 바닥에 닿는 부분은 별표로 표시합니다.
 - 부모와 자식 마디가 어디에서 연결되는지 분명하게 그립니다.
 - 전체 높이를 m 단위로 적습니다.
+
+<details>
+<summary>손그림 예시 보기</summary>
+
+<img src="pilot/p3_source.png" alt="마디 이름, 관절, 발, 전진 방향과 높이를 표시한 P3 손그림" width="720">
+
+P3 파일럿에서 사용한 그림입니다. 마디 이름, 관절 위치, 발, 전진 방향과 전체 높이를 표시했습니다.
+
+</details>
 
 그림이 모호해 AI가 확인 질문을 하면, 답변한 뒤 JSON을 확정합니다. AI를 사용하지 않아도 `characters/my_character.json` 템플릿의 길이, 두께, 관절 범위만 바꿔 실습할 수 있습니다.
 
